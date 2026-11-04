@@ -128,7 +128,16 @@ data class TranscribeResponse(val text: String)
 // --- Stable Diffusion ---
 
 @Serializable
-data class StableDiffusionInitRequest(val modelPath: String, val threads: Int = -1)
+data class StableDiffusionInitRequest(
+    val modelPath: String,
+    val threads: Int = -1,
+    /** VAE companion model (required for video models such as Wan 2.1/2.2). */
+    val vaePath: String? = null,
+    /** T5-XXL text encoder companion (required for some video models). */
+    val t5xxlPath: String? = null,
+    /** CLIP vision encoder companion (required for image-to-video variants). */
+    val clipVisionPath: String? = null,
+)
 
 @Serializable
 data class Txt2ImgRequest(
@@ -158,6 +167,38 @@ data class Img2ImgRequest(
 
 @Serializable
 data class ImageResponse(val imageBase64: String)
+
+/** Response for [POST /v1/stablediffusion/txt2video].
+ *
+ * [videoBase64] is the Base64 encoding of the packed binary frame buffer produced by
+ * [StableDiffusionBridge.txt2video]. The binary layout is:
+ *
+ * ```
+ * [frameCount: Int32 LE][width: Int32 LE][height: Int32 LE][fps: Int32 LE]
+ * [frame_0_rgba: width * height * 4 bytes]
+ * [frame_1_rgba: width * height * 4 bytes]
+ * ...
+ * ```
+ */
+@Serializable
+data class VideoResponse(val videoBase64: String)
+
+/** Response for [GET /v1/stablediffusion/supportsVideo]. */
+@Serializable
+data class SupportsVideoResponse(val supportsVideo: Boolean)
+
+/** Request body for [POST /v1/stablediffusion/txt2video]. */
+@Serializable
+data class Txt2VideoRequest(
+    val prompt: String,
+    val negativePrompt: String? = null,
+    val width: Int = 512,
+    val height: Int = 512,
+    val videoFrames: Int = 16,
+    val fps: Int = 8,
+    val cfgScale: Float = 7.0f,
+    val seed: Long = -1L,
+)
 
 // --- MTP (Multi-Token Prediction / speculative decoding) ---
 

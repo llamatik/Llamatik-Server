@@ -8,8 +8,22 @@ object StableDiffusionService : StableDiffusionServicePort {
 
     private val mutex = Mutex()
 
-    override suspend fun initModel(modelPath: String, threads: Int): Result<Boolean> = runCatching {
-        mutex.withLock { StableDiffusionBridge.initModel(modelPath, threads) }
+    override suspend fun initModel(
+        modelPath: String,
+        threads: Int,
+        vaePath: String?,
+        t5xxlPath: String?,
+        clipVisionPath: String?,
+    ): Result<Boolean> = runCatching {
+        mutex.withLock {
+            StableDiffusionBridge.initModel(
+                modelPath = modelPath,
+                threads = threads,
+                vaePath = vaePath,
+                t5xxlPath = t5xxlPath,
+                clipVisionPath = clipVisionPath,
+            )
+        }
     }
 
     override suspend fun txt2img(
@@ -66,5 +80,33 @@ object StableDiffusionService : StableDiffusionServicePort {
 
     override suspend fun release(): Result<Unit> = runCatching {
         mutex.withLock { StableDiffusionBridge.release() }
+    }
+
+    override suspend fun supportsVideoGeneration(): Result<Boolean> = runCatching {
+        mutex.withLock { StableDiffusionBridge.supportsVideoGeneration() }
+    }
+
+    override suspend fun txt2video(
+        prompt: String,
+        negativePrompt: String?,
+        width: Int,
+        height: Int,
+        videoFrames: Int,
+        fps: Int,
+        cfgScale: Float,
+        seed: Long,
+    ): Result<ByteArray> = runCatching {
+        mutex.withLock {
+            StableDiffusionBridge.txt2video(
+                prompt = prompt,
+                negativePrompt = negativePrompt,
+                width = width,
+                height = height,
+                videoFrames = videoFrames,
+                fps = fps,
+                cfgScale = cfgScale,
+                seed = seed,
+            )
+        }
     }
 }

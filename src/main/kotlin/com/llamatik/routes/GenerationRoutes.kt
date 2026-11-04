@@ -22,7 +22,9 @@ import com.llamatik.api.UpdateParamsRequest
 import com.llamatik.core.platform.GenStream
 import com.llamatik.llama.LlamaService
 import com.llamatik.llama.LlamaServicePort
+import com.llamatik.util.PathValidator
 import com.llamatik.util.Sse
+import com.llamatik.util.sanitizedMessage
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
@@ -71,9 +73,10 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
     // --- initialization ---
     post(GENERATION_INIT) {
         val req = call.receive<InitModelRequest>()
-        service.initGenerateModel(req.modelPath).fold(
+        // Throws IllegalArgumentException on invalid path — caught by StatusPages → 400
+        service.initGenerateModel(PathValidator.validateModelPath(req.modelPath)).fold(
             onSuccess = { call.respond(InitModelResponse(ok = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Init failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
@@ -82,7 +85,7 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
         val req = call.receive<GenerateRequest>()
         service.generate(req.prompt).fold(
             onSuccess = { call.respond(GenerateResponse(text = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Generation failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
@@ -90,7 +93,7 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
         val req = call.receive<GenerateWithContextRequest>()
         service.generateWithContext(req.systemPrompt, req.contextBlock, req.userPrompt).fold(
             onSuccess = { call.respond(GenerateResponse(text = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Generation failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
@@ -98,7 +101,7 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
         val req = call.receive<GenerateJsonRequest>()
         service.generateJson(req.prompt, req.jsonSchema).fold(
             onSuccess = { call.respond(GenerateResponse(text = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Generation failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
@@ -106,7 +109,7 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
         val req = call.receive<GenerateJsonWithContextRequest>()
         service.generateJsonWithContext(req.systemPrompt, req.contextBlock, req.userPrompt, req.jsonSchema).fold(
             onSuccess = { call.respond(GenerateResponse(text = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Generation failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
@@ -114,7 +117,7 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
         val req = call.receive<GenerateContinueRequest>()
         service.generateContinue(req.prompt).fold(
             onSuccess = { call.respond(GenerateResponse(text = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Generation failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
@@ -127,21 +130,21 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
             req.gpuLayers
         ).fold(
             onSuccess = { call.respond(OkResponse()) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Param update failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(GENERATION_CANCEL) {
         service.cancelGenerate().fold(
             onSuccess = { call.respond(OkResponse()) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Cancel failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(GENERATION_SHUTDOWN) {
         service.shutdown().fold(
             onSuccess = { call.respond(OkResponse()) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Shutdown failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
@@ -149,23 +152,24 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
     post(GENERATION_SESSION_RESET) {
         service.sessionReset().fold(
             onSuccess = { call.respond(SessionResult(ok = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Session reset failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(GENERATION_SESSION_SAVE) {
         val req = call.receive<SessionSaveRequest>()
-        service.sessionSave(req.path).fold(
+        // Session paths are validated against SESSIONS_DIR to prevent arbitrary file writes.
+        service.sessionSave(PathValidator.validateSessionPath(req.path)).fold(
             onSuccess = { call.respond(SessionResult(ok = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Session save failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(GENERATION_SESSION_LOAD) {
         val req = call.receive<SessionLoadRequest>()
-        service.sessionLoad(req.path).fold(
+        service.sessionLoad(PathValidator.validateSessionPath(req.path)).fold(
             onSuccess = { call.respond(SessionResult(ok = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Session load failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
@@ -173,14 +177,14 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
     get(GENERATION_MODEL_FINETUNE_TYPE) {
         service.getModelFinetuneType().fold(
             onSuccess = { call.respond(ModelFinetuneTypeResponse(finetuneType = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Failed to get finetune type") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     get(GENERATION_MODEL_CHAT_TEMPLATE) {
         service.getModelChatTemplate().fold(
             onSuccess = { call.respond(ModelChatTemplateResponse(chatTemplate = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Failed to get chat template") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
@@ -189,23 +193,23 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
         val pairs = req.messages.map { it.role to it.content }
         service.applyChatTemplate(pairs, req.addAssistantPrefix).fold(
             onSuccess = { call.respond(ApplyChatTemplateResponse(prompt = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Failed to apply chat template") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     // --- MTP (speculative decoding) ---
     post(GENERATION_MTP_INIT) {
         val req = call.receive<InitMtpRequest>()
-        service.initMtp(req.modelPath, req.draftLen).fold(
+        service.initMtp(PathValidator.validateModelPath(req.modelPath), req.draftLen).fold(
             onSuccess = { call.respond(InitModelResponse(ok = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "MTP init failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(GENERATION_MTP_SHUTDOWN) {
         service.shutdownMtp().fold(
             onSuccess = { call.respond(OkResponse()) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "MTP shutdown failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 

@@ -15,7 +15,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Kotlin-JVM-blueviolet" alt="kotlin badge"/>
   <img src="https://img.shields.io/badge/Ktor-3.3-ff4088" alt="ktor badge"/>
-  <img src="https://img.shields.io/badge/Llamatik-2.1.0-orange" alt="llamatik badge"/>
+  <img src="https://img.shields.io/badge/Llamatik-2.2.0-orange" alt="llamatik badge"/>
   <img src="https://img.shields.io/badge/LLM-llama.cpp-orange" alt="llama badge"/>
   <img src="https://img.shields.io/badge/STT-whisper.cpp-blue" alt="whisper badge"/>
   <img src="https://img.shields.io/badge/Image-stablediffusion.cpp-purple" alt="sd badge"/>
@@ -29,13 +29,13 @@
 
 **Llamatik Server** is a self-hosted HTTP backend that exposes the **same API as the [Llamatik Kotlin library](https://github.com/ferranpons/Llamatik)**. Deploy it on any machine and point your app at it — no client-side code changes required.
 
-It covers the full `LlamaBridge`, `WhisperBridge`, `StableDiffusionBridge`, and `MultimodalBridge` surface: LLM generation, embeddings, speech-to-text, image generation, and multimodal vision — all over HTTP.
+It covers the full `LlamaBridge`, `WhisperBridge`, `StableDiffusionBridge`, and `MultimodalBridge` surface: LLM generation, embeddings, speech-to-text, image generation, **video generation**, and multimodal vision — all over HTTP.
 
 ---
 
 ## 🚀 Features
 
-- ✅ Full parity with **Llamatik core 2.1.0** API
+- ✅ Full parity with **Llamatik core 2.2.0** API
 - ✅ LLM inference via **llama.cpp** — streaming & non-streaming
 - ✅ **Schema-constrained JSON generation**
 - ✅ **Embeddings** for vector search & RAG
@@ -45,6 +45,7 @@ It covers the full `LlamaBridge`, `WhisperBridge`, `StableDiffusionBridge`, and 
 - ✅ **GPU layer offload** — configurable via `gpuLayers` parameter
 - ✅ **Speech-to-Text** via whisper.cpp (`/v1/whisper`) — flat transcription and segment-aware with timestamps & diarization
 - ✅ **Image generation** via stable-diffusion.cpp (`/v1/stablediffusion`)
+- ✅ **Video generation** via stable-diffusion.cpp — text-to-video with Wan 2.1/2.2 models (`/v1/stablediffusion/txt2video`)
 - ✅ **Multimodal / VLM** image analysis via streaming SSE (`/v1/multimodal`)
 - ✅ Production-ready **Ktor** server (Apache Tomcat Jakarta)
 - ✅ JWT authentication + user profiles
@@ -130,6 +131,9 @@ sudo systemctl enable docker.llamatik
 | `DB_PASSWORD` | | Database password |
 | `DB_MAX_POOL_SIZE` | | HikariCP pool size (default: `3`) |
 | `ENABLE_SHUTDOWN_URL` | | Set to `"true"` to enable `POST /ktor/application/shutdown` |
+| `REQUIRE_INFERENCE_AUTH` | | Set to `"true"` to require a valid JWT Bearer token on all inference endpoints. **Always set this for internet-facing deployments.** LAN-only deployments may leave it unset. |
+| `MODELS_DIR` | | Absolute path to the directory that holds model files, WAV files, and companion files (e.g. `/srv/models`). When set, all caller-supplied file paths are validated to resolve inside this directory, preventing path traversal. Strongly recommended for all deployments. |
+| `SESSIONS_DIR` | | Absolute path for KV-session save/load files. Defaults to `$MODELS_DIR/sessions` when `MODELS_DIR` is set. When neither is configured, session paths are unconstrained. |
 
 ---
 
@@ -369,20 +373,36 @@ Returns a JSON document with per-segment text, start/end timestamps (millisecond
 
 ---
 
-### 🎨 Image Generation (`/v1/stablediffusion`)
+### 🎨 Image & Video Generation (`/v1/stablediffusion`)
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/v1/stablediffusion/init` | Load a Stable Diffusion model |
 | POST | `/v1/stablediffusion/txt2img` | Text-to-image generation |
 | POST | `/v1/stablediffusion/img2img` | Image-to-image generation |
+| GET  | `/v1/stablediffusion/supportsVideo` | Check if the loaded model supports video generation |
+| POST | `/v1/stablediffusion/txt2video` | Text-to-video generation |
 | POST | `/v1/stablediffusion/release` | Free SD native resources |
 
 Images are exchanged as **Base64-encoded RGBA bytes** (`width × height × 4`).
 
 #### `POST /v1/stablediffusion/init`
+
+For standard image models (Stable Diffusion, SDXL, Flux, …) only `modelPath` is required.
+Video models (Wan 2.1/2.2) additionally require `vaePath` and typically `t5xxlPath`.
+Pass `clipVisionPath` only for image-to-video variants.
+
 ```json
 { "modelPath": "/models/dreamshaper.gguf", "threads": 4 }
+```
+
+```json
+{
+  "modelPath": "/models/wan2.1-t2v-1.3b.gguf",
+  "threads": -1,
+  "vaePath": "/models/wan_2.1_vae.safetensors",
+  "t5xxlPath": "/models/umt5-xxl-encoder-Q8_0.gguf"
+}
 ```
 
 #### `POST /v1/stablediffusion/txt2img`
@@ -411,6 +431,43 @@ Images are exchanged as **Base64-encoded RGBA bytes** (`width × height × 4`).
   "strength": 0.75,
   "seed": 42
 }
+```
+
+#### `GET /v1/stablediffusion/supportsVideo`
+
+Returns `true` when the currently loaded model supports video generation (e.g. Wan 2.1/2.2).
+Call this after `/v1/stablediffusion/init` to confirm video capability before generating.
+
+```json
+{ "supportsVideo": true }
+```
+
+#### `POST /v1/stablediffusion/txt2video`
+
+Generates a video from a text prompt using a video-capable model. The response encodes a
+**packed binary frame buffer** as Base64. After decoding, the binary layout is:
+
+```
+[frameCount: Int32 LE][width: Int32 LE][height: Int32 LE][fps: Int32 LE]
+[frame_0_rgba: width × height × 4 bytes]
+[frame_1_rgba: width × height × 4 bytes]
+...
+```
+
+```json
+{
+  "prompt": "A llama running through a neon-lit city",
+  "negativePrompt": "blurry, low quality",
+  "width": 512,
+  "height": 512,
+  "videoFrames": 16,
+  "fps": 8,
+  "cfgScale": 7.0,
+  "seed": 42
+}
+```
+```json
+{ "videoBase64": "<base64-encoded packed frame buffer>" }
 ```
 
 ---
@@ -477,12 +534,13 @@ The test suite covers all API endpoints using Ktor's `testApplication` with serv
 | Suite | Tests |
 |---|---|
 | `EmbeddingRoutesTest` | 4 |
-| `GenerationRoutesTest` | 31 |
+| `GenerationRoutesTest` | 49 |
 | `WhisperRoutesTest` | 10 |
-| `StableDiffusionRoutesTest` | 10 |
-| `MultimodalRoutesTest` | 7 |
+| `StableDiffusionRoutesTest` | 22 |
+| `MultimodalRoutesTest` | 9 |
+| `PathValidatorTest` | 10 |
 | `SseTest` | 3 |
-| **Total** | **65** |
+| **Total** | **107** |
 
 ---
 
@@ -502,6 +560,40 @@ You can:
 - Run inference locally via llama.cpp / whisper.cpp / stable-diffusion.cpp
 - Fall back to this server when more power is needed
 - Switch dynamically based on connectivity or hardware capability
+
+---
+
+## 🔒 Security Model
+
+Llamatik Server is designed for two deployment topologies:
+
+| Topology | Recommended settings |
+|---|---|
+| **Trusted LAN** (home / office network) | Leave `REQUIRE_INFERENCE_AUTH` unset; set `MODELS_DIR` |
+| **Internet-facing** | `REQUIRE_INFERENCE_AUTH=true` + reverse proxy with TLS + `MODELS_DIR` + `SESSIONS_DIR` |
+
+### Path containment
+
+Set `MODELS_DIR` to an absolute directory (e.g. `/srv/models`). Llamatik Server will reject any caller-supplied path (`modelPath`, `vaePath`, `wavPath`, session `path`, …) that does not resolve inside that directory, preventing path traversal into the host filesystem.
+
+```bash
+export MODELS_DIR=/srv/models
+export SESSIONS_DIR=/srv/models/sessions   # optional, defaults to $MODELS_DIR/sessions
+```
+
+### Inference authentication
+
+When `REQUIRE_INFERENCE_AUTH=true` every inference endpoint (`/v1/embeddings`, `/v1/generation`, `/v1/whisper`, `/v1/stablediffusion`, `/v1/multimodal`) requires the same JWT Bearer token as the profile/user endpoints.
+
+```bash
+export REQUIRE_INFERENCE_AUTH=true
+```
+
+Pass the token obtained from `POST /v1/users/login` as an `Authorization: Bearer <token>` header on all inference requests.
+
+### Error messages
+
+JNI error messages from the native runtimes are sanitized before being returned to HTTP callers — absolute filesystem paths are replaced with `[path]` — so internal host layout is never exposed in API error responses.
 
 ---
 

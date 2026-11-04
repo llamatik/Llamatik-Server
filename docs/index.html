@@ -179,33 +179,39 @@
   </head>
   <body>
   <h1>Llamatik API</h1>
-    <div class="app-desc"><p>Lightweight llama.cpp HTTP server exposing the same surface as the Llamatik <code>LlamaBridge</code> API.</p>
+    <div class="app-desc"><p>Self-hosted inference server exposing the same surface as the Llamatik <code>LlamaBridge</code>,
+<code>WhisperBridge</code>, <code>StableDiffusionBridge</code>, and <code>MultimodalBridge</code> APIs.</p>
 <ul>
 <li>JSON endpoints for embeddings and generation</li>
 <li>SSE streaming endpoints for token/delta streaming</li>
+<li>Text-to-image and text-to-video generation (stable-diffusion.cpp)</li>
+<li>Speech-to-text transcription (whisper.cpp)</li>
+<li>Multimodal / VLM image analysis (streaming SSE)</li>
 </ul>
 </div>
     <div class="app-desc">More information: <a href="https://helloreverb.com">https://helloreverb.com</a></div>
     <div class="app-desc">Contact Info: <a href="hello@helloreverb.com">hello@helloreverb.com</a></div>
-    <div class="app-desc">Version: 0.1.0</div>
+    <div class="app-desc">Version: 2.2.0</div>
     <div class="app-desc">BasePath:/v1</div>
     <div class="license-info">All rights reserved</div>
     <div class="license-url">http://apache.org/licenses/LICENSE-2.0.html</div>
   <h2>Access</h2>
-    <ol>
-      <li>HTTP Basic Authentication</li>
-    </ol>
 
   <h2><a name="__Methods">Methods</a></h2>
   [ Jump to <a href="#__Models">Models</a> ]
 
   <h3>Table of Contents </h3>
   <div class="method-summary"></div>
-  <h4><a href="#Default">Default</a></h4>
+  <h4><a href="#Embeddings">Embeddings</a></h4>
   <ul>
   <li><a href="#embeddingsEmbedPost"><code><span class="http-method">post</span> /embeddings/embed</code></a></li>
   <li><a href="#embeddingsInitPost"><code><span class="http-method">post</span> /embeddings/init</code></a></li>
+  </ul>
+  <h4><a href="#Generation">Generation</a></h4>
+  <ul>
   <li><a href="#generationCancelPost"><code><span class="http-method">post</span> /generation/cancel</code></a></li>
+  <li><a href="#generationContinuePost"><code><span class="http-method">post</span> /generation/continue</code></a></li>
+  <li><a href="#generationContinueStreamPost"><code><span class="http-method">post</span> /generation/continueStream</code></a></li>
   <li><a href="#generationGenerateJsonPost"><code><span class="http-method">post</span> /generation/generateJson</code></a></li>
   <li><a href="#generationGenerateJsonWithContextPost"><code><span class="http-method">post</span> /generation/generateJsonWithContext</code></a></li>
   <li><a href="#generationGeneratePost"><code><span class="http-method">post</span> /generation/generate</code></a></li>
@@ -214,16 +220,57 @@
   <li><a href="#generationJsonStreamPost"><code><span class="http-method">post</span> /generation/jsonStream</code></a></li>
   <li><a href="#generationJsonStreamWithContextPost"><code><span class="http-method">post</span> /generation/jsonStreamWithContext</code></a></li>
   <li><a href="#generationParamsPost"><code><span class="http-method">post</span> /generation/params</code></a></li>
+  <li><a href="#generationShutdownPost"><code><span class="http-method">post</span> /generation/shutdown</code></a></li>
   <li><a href="#generationStreamPost"><code><span class="http-method">post</span> /generation/stream</code></a></li>
   <li><a href="#generationStreamWithContextPost"><code><span class="http-method">post</span> /generation/streamWithContext</code></a></li>
   </ul>
+  <h4><a href="#GenerationMTP">GenerationMTP</a></h4>
+  <ul>
+  <li><a href="#generationMtpInitPost"><code><span class="http-method">post</span> /generation/mtp/init</code></a></li>
+  <li><a href="#generationMtpShutdownPost"><code><span class="http-method">post</span> /generation/mtp/shutdown</code></a></li>
+  </ul>
+  <h4><a href="#GenerationModelMetadata">GenerationModelMetadata</a></h4>
+  <ul>
+  <li><a href="#generationModelApplyChatTemplatePost"><code><span class="http-method">post</span> /generation/model/applyChatTemplate</code></a></li>
+  <li><a href="#generationModelChatTemplateGet"><code><span class="http-method">get</span> /generation/model/chatTemplate</code></a></li>
+  <li><a href="#generationModelFinetuneTypeGet"><code><span class="http-method">get</span> /generation/model/finetuneType</code></a></li>
+  </ul>
+  <h4><a href="#GenerationSession">GenerationSession</a></h4>
+  <ul>
+  <li><a href="#generationSessionLoadPost"><code><span class="http-method">post</span> /generation/session/load</code></a></li>
+  <li><a href="#generationSessionResetPost"><code><span class="http-method">post</span> /generation/session/reset</code></a></li>
+  <li><a href="#generationSessionSavePost"><code><span class="http-method">post</span> /generation/session/save</code></a></li>
+  </ul>
+  <h4><a href="#Multimodal">Multimodal</a></h4>
+  <ul>
+  <li><a href="#multimodalAnalyzeStreamPost"><code><span class="http-method">post</span> /multimodal/analyzeStream</code></a></li>
+  <li><a href="#multimodalCancelPost"><code><span class="http-method">post</span> /multimodal/cancel</code></a></li>
+  <li><a href="#multimodalInitPost"><code><span class="http-method">post</span> /multimodal/init</code></a></li>
+  <li><a href="#multimodalReleasePost"><code><span class="http-method">post</span> /multimodal/release</code></a></li>
+  </ul>
+  <h4><a href="#StableDiffusion">StableDiffusion</a></h4>
+  <ul>
+  <li><a href="#stablediffusionImg2imgPost"><code><span class="http-method">post</span> /stablediffusion/img2img</code></a></li>
+  <li><a href="#stablediffusionInitPost"><code><span class="http-method">post</span> /stablediffusion/init</code></a></li>
+  <li><a href="#stablediffusionReleasePost"><code><span class="http-method">post</span> /stablediffusion/release</code></a></li>
+  <li><a href="#stablediffusionSupportsVideoGet"><code><span class="http-method">get</span> /stablediffusion/supportsVideo</code></a></li>
+  <li><a href="#stablediffusionTxt2imgPost"><code><span class="http-method">post</span> /stablediffusion/txt2img</code></a></li>
+  <li><a href="#stablediffusionTxt2videoPost"><code><span class="http-method">post</span> /stablediffusion/txt2video</code></a></li>
+  </ul>
+  <h4><a href="#Whisper">Whisper</a></h4>
+  <ul>
+  <li><a href="#whisperInitPost"><code><span class="http-method">post</span> /whisper/init</code></a></li>
+  <li><a href="#whisperReleasePost"><code><span class="http-method">post</span> /whisper/release</code></a></li>
+  <li><a href="#whisperTranscribePost"><code><span class="http-method">post</span> /whisper/transcribe</code></a></li>
+  <li><a href="#whisperTranscribeSegmentsPost"><code><span class="http-method">post</span> /whisper/transcribeSegments</code></a></li>
+  </ul>
 
-  <h1><a name="Default">Default</a></h1>
+  <h1><a name="Embeddings">Embeddings</a></h1>
   <div class="method"><a name="embeddingsEmbedPost"></a>
     <div class="method-path">
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /embeddings/embed</code></pre></div>
-    <div class="method-summary">Create an embedding for a given input string (<span class="nickname">embeddingsEmbedPost</span>)</div>
+    <div class="method-summary">Compute an embedding vector for a given input string (<span class="nickname">embeddingsEmbedPost</span>)</div>
     <div class="method-notes"></div>
 
 
@@ -268,6 +315,9 @@
     <h4 class="field-label">200</h4>
     Embedding vector
         <a href="#EmbedResponse">EmbedResponse</a>
+    <h4 class="field-label">400</h4>
+    Embed failed
+        <a href="#"></a>
   </div> <!-- method -->
   <hr/>
   <div class="method"><a name="embeddingsInitPost"></a>
@@ -319,8 +369,12 @@
     <h4 class="field-label">200</h4>
     Model initialization status
         <a href="#InitModelResponse">InitModelResponse</a>
+    <h4 class="field-label">400</h4>
+    Init failed
+        <a href="#"></a>
   </div> <!-- method -->
   <hr/>
+  <h1><a name="Generation">Generation</a></h1>
   <div class="method"><a name="generationCancelPost"></a>
     <div class="method-path">
     <a class="up" href="#__Methods">Up</a>
@@ -359,6 +413,101 @@
     <h4 class="field-label">200</h4>
     OK
         <a href="#OkResponse">OkResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="generationContinuePost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/continue</code></pre></div>
+    <div class="method-summary">Continue generation from the existing KV cache (<span class="nickname">generationContinuePost</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#GenerateContinueRequest">GenerateContinueRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#GenerateResponse">GenerateResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "text" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Generated text
+        <a href="#GenerateResponse">GenerateResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="generationContinueStreamPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/continueStream</code></pre></div>
+    <div class="method-summary">Stream a continuation from the KV cache as Server-Sent Events (SSE) (<span class="nickname">generationContinueStreamPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#GenerateContinueRequest">GenerateContinueRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>""</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>text/event-stream</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    SSE stream
+        <a href="#"></a>
   </div> <!-- method -->
   <hr/>
   <div class="method"><a name="generationGenerateJsonPost"></a>
@@ -416,7 +565,7 @@
     <div class="method-path">
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/generateJsonWithContext</code></pre></div>
-    <div class="method-summary">Generate JSON with system prompt + context + user prompt (optionally constrained by schema) (<span class="nickname">generationGenerateJsonWithContextPost</span>)</div>
+    <div class="method-summary">Generate JSON with system prompt + context + user prompt (<span class="nickname">generationGenerateJsonWithContextPost</span>)</div>
     <div class="method-notes"></div>
 
 
@@ -467,7 +616,7 @@
     <div class="method-path">
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/generate</code></pre></div>
-    <div class="method-summary">Generate a completion for a prompt (<span class="nickname">generationGeneratePost</span>)</div>
+    <div class="method-summary">Generate a one-shot completion for a prompt (<span class="nickname">generationGeneratePost</span>)</div>
     <div class="method-notes"></div>
 
 
@@ -614,6 +763,9 @@
     <h4 class="field-label">200</h4>
     Model initialization status
         <a href="#InitModelResponse">InitModelResponse</a>
+    <h4 class="field-label">400</h4>
+    Init failed
+        <a href="#"></a>
   </div> <!-- method -->
   <hr/>
   <div class="method"><a name="generationJsonStreamPost"></a>
@@ -755,6 +907,46 @@
         <a href="#OkResponse">OkResponse</a>
   </div> <!-- method -->
   <hr/>
+  <div class="method"><a name="generationShutdownPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/shutdown</code></pre></div>
+    <div class="method-summary">Unload the generation model and free native resources (<span class="nickname">generationShutdownPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#OkResponse">OkResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#OkResponse">OkResponse</a>
+  </div> <!-- method -->
+  <hr/>
   <div class="method"><a name="generationStreamPost"></a>
     <div class="method-path">
     <a class="up" href="#__Methods">Up</a>
@@ -843,25 +1035,1155 @@
         <a href="#"></a>
   </div> <!-- method -->
   <hr/>
+  <h1><a name="GenerationMTP">GenerationMTP</a></h1>
+  <div class="method"><a name="generationMtpInitPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/mtp/init</code></pre></div>
+    <div class="method-summary">Initialize a Multi-Token Prediction (MTP) speculative decoding head (<span class="nickname">generationMtpInitPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#InitMtpRequest">InitMtpRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#OkResponse">OkResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    MTP init status
+        <a href="#OkResponse">OkResponse</a>
+    <h4 class="field-label">400</h4>
+    Init failed
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="generationMtpShutdownPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/mtp/shutdown</code></pre></div>
+    <div class="method-summary">Release MTP speculative decoding resources (<span class="nickname">generationMtpShutdownPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#OkResponse">OkResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#OkResponse">OkResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <h1><a name="GenerationModelMetadata">GenerationModelMetadata</a></h1>
+  <div class="method"><a name="generationModelApplyChatTemplatePost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/model/applyChatTemplate</code></pre></div>
+    <div class="method-summary">Render messages into a prompt string using the model's built-in chat template (<span class="nickname">generationModelApplyChatTemplatePost</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#ApplyChatTemplateRequest">ApplyChatTemplateRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ApplyChatTemplateResponse">ApplyChatTemplateResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "prompt" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Rendered prompt
+        <a href="#ApplyChatTemplateResponse">ApplyChatTemplateResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="generationModelChatTemplateGet"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /generation/model/chatTemplate</code></pre></div>
+    <div class="method-summary">Returns the Jinja chat template embedded in the model (<span class="nickname">generationModelChatTemplateGet</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ModelChatTemplateResponse">ModelChatTemplateResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "chatTemplate" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Chat template string
+        <a href="#ModelChatTemplateResponse">ModelChatTemplateResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="generationModelFinetuneTypeGet"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /generation/model/finetuneType</code></pre></div>
+    <div class="method-summary">Returns the <code>general.finetune</code> GGUF metadata field (<span class="nickname">generationModelFinetuneTypeGet</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ModelFinetuneTypeResponse">ModelFinetuneTypeResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "finetuneType" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Fine-tune type
+        <a href="#ModelFinetuneTypeResponse">ModelFinetuneTypeResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <h1><a name="GenerationSession">GenerationSession</a></h1>
+  <div class="method"><a name="generationSessionLoadPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/session/load</code></pre></div>
+    <div class="method-summary">Restore KV session state from disk (<span class="nickname">generationSessionLoadPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#SessionLoadRequest">SessionLoadRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#SessionResult">SessionResult</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Load status
+        <a href="#SessionResult">SessionResult</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="generationSessionResetPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/session/reset</code></pre></div>
+    <div class="method-summary">Clear the KV session state (keeps model loaded) (<span class="nickname">generationSessionResetPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#SessionResult">SessionResult</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#SessionResult">SessionResult</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="generationSessionSavePost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/session/save</code></pre></div>
+    <div class="method-summary">Persist KV session state to disk (<span class="nickname">generationSessionSavePost</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#SessionSaveRequest">SessionSaveRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#SessionResult">SessionResult</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Save status
+        <a href="#SessionResult">SessionResult</a>
+  </div> <!-- method -->
+  <hr/>
+  <h1><a name="Multimodal">Multimodal</a></h1>
+  <div class="method"><a name="multimodalAnalyzeStreamPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /multimodal/analyzeStream</code></pre></div>
+    <div class="method-summary">Analyze an image and stream the description as Server-Sent Events (SSE) (<span class="nickname">multimodalAnalyzeStreamPost</span>)</div>
+    <div class="method-notes"><code>imageBase64</code> must be Base64-encoded JPEG, PNG, or BMP bytes.
+Uses the same SSE event format as generation streaming (<code>delta</code> / <code>done</code> / <code>error</code>).</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#AnalyzeImageRequest">AnalyzeImageRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>""</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>text/event-stream</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    SSE stream
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="multimodalCancelPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /multimodal/cancel</code></pre></div>
+    <div class="method-summary">Cancel an in-progress image analysis (<span class="nickname">multimodalCancelPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#OkResponse">OkResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#OkResponse">OkResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="multimodalInitPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /multimodal/init</code></pre></div>
+    <div class="method-summary">Load a VLM model and its multimodal projector (<span class="nickname">multimodalInitPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#MultimodalInitRequest">MultimodalInitRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#InitModelResponse">InitModelResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Init status
+        <a href="#InitModelResponse">InitModelResponse</a>
+    <h4 class="field-label">400</h4>
+    Init failed
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="multimodalReleasePost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /multimodal/release</code></pre></div>
+    <div class="method-summary">Free VLM native resources (<span class="nickname">multimodalReleasePost</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#OkResponse">OkResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#OkResponse">OkResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <h1><a name="StableDiffusion">StableDiffusion</a></h1>
+  <div class="method"><a name="stablediffusionImg2imgPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /stablediffusion/img2img</code></pre></div>
+    <div class="method-summary">Generate an image conditioned on an existing image and a prompt (<span class="nickname">stablediffusionImg2imgPost</span>)</div>
+    <div class="method-notes"><code>initImageBase64</code> must be Base64-encoded raw RGBA bytes with dimensions <code>initImageW × initImageH × 4</code>.</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#Img2ImgRequest">Img2ImgRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ImageResponse">ImageResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "imageBase64" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Generated image
+        <a href="#ImageResponse">ImageResponse</a>
+    <h4 class="field-label">400</h4>
+    Generation failed
+        <a href="#"></a>
+    <h4 class="field-label">500</h4>
+    Generation produced no output
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="stablediffusionInitPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /stablediffusion/init</code></pre></div>
+    <div class="method-summary">Load a Stable Diffusion model (<span class="nickname">stablediffusionInitPost</span>)</div>
+    <div class="method-notes">For image-only models (SDXL, Flux, …) only <code>modelPath</code> and <code>threads</code> are required.
+Video models (Wan 2.1/2.2) additionally require <code>vaePath</code> and typically <code>t5xxlPath</code>.
+Pass <code>clipVisionPath</code> only for image-to-video variants.</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#StableDiffusionInitRequest">StableDiffusionInitRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#InitModelResponse">InitModelResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Init status
+        <a href="#InitModelResponse">InitModelResponse</a>
+    <h4 class="field-label">400</h4>
+    Init failed
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="stablediffusionReleasePost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /stablediffusion/release</code></pre></div>
+    <div class="method-summary">Free Stable Diffusion native resources (<span class="nickname">stablediffusionReleasePost</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#OkResponse">OkResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#OkResponse">OkResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="stablediffusionSupportsVideoGet"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /stablediffusion/supportsVideo</code></pre></div>
+    <div class="method-summary">Check whether the loaded model supports video generation (<span class="nickname">stablediffusionSupportsVideoGet</span>)</div>
+    <div class="method-notes">Call this after <code>/stablediffusion/init</code>. Returns <code>true</code> for video-capable models
+(e.g. Wan 2.1/2.2). Standard image-only models return <code>false</code>.</div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#SupportsVideoResponse">SupportsVideoResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "supportsVideo" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Video capability flag
+        <a href="#SupportsVideoResponse">SupportsVideoResponse</a>
+    <h4 class="field-label">500</h4>
+    Check failed (no model loaded or internal error)
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="stablediffusionTxt2imgPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /stablediffusion/txt2img</code></pre></div>
+    <div class="method-summary">Generate an image from a text prompt (<span class="nickname">stablediffusionTxt2imgPost</span>)</div>
+    <div class="method-notes">Response contains Base64-encoded raw RGBA bytes (<code>width × height × 4</code>).</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#Txt2ImgRequest">Txt2ImgRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ImageResponse">ImageResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "imageBase64" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Generated image
+        <a href="#ImageResponse">ImageResponse</a>
+    <h4 class="field-label">400</h4>
+    Generation failed
+        <a href="#"></a>
+    <h4 class="field-label">500</h4>
+    Generation produced no output
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="stablediffusionTxt2videoPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /stablediffusion/txt2video</code></pre></div>
+    <div class="method-summary">Generate a video from a text prompt (<span class="nickname">stablediffusionTxt2videoPost</span>)</div>
+    <div class="method-notes"><p>Requires a video-capable model loaded via <code>/stablediffusion/init</code> with companion files.
+The response contains the full packed frame buffer Base64-encoded.</p>
+<p><strong>Binary layout of the decoded <code>videoBase64</code> value:</strong></p>
+<pre><code>[frameCount: Int32 LE][width: Int32 LE][height: Int32 LE][fps: Int32 LE]
+[frame_0_rgba: width * height * 4 bytes]
+[frame_1_rgba: width * height * 4 bytes]
+...
+</code></pre>
+<p>Returns HTTP 500 when the model produces no output.</p>
+</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#Txt2VideoRequest">Txt2VideoRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#VideoResponse">VideoResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "videoBase64" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Generated video (packed frames)
+        <a href="#VideoResponse">VideoResponse</a>
+    <h4 class="field-label">400</h4>
+    Generation failed
+        <a href="#"></a>
+    <h4 class="field-label">500</h4>
+    Generation produced no output
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <h1><a name="Whisper">Whisper</a></h1>
+  <div class="method"><a name="whisperInitPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /whisper/init</code></pre></div>
+    <div class="method-summary">Load a Whisper speech-to-text model (<span class="nickname">whisperInitPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#WhisperInitRequest">WhisperInitRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#InitModelResponse">InitModelResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Init status
+        <a href="#InitModelResponse">InitModelResponse</a>
+    <h4 class="field-label">400</h4>
+    Init failed
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="whisperReleasePost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /whisper/release</code></pre></div>
+    <div class="method-summary">Free Whisper native resources (<span class="nickname">whisperReleasePost</span>)</div>
+    <div class="method-notes"></div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#OkResponse">OkResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "ok" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    OK
+        <a href="#OkResponse">OkResponse</a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="whisperTranscribePost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /whisper/transcribe</code></pre></div>
+    <div class="method-summary">Transcribe a WAV file to flat text (<span class="nickname">whisperTranscribePost</span>)</div>
+    <div class="method-notes">Provide a 16 kHz mono 16-bit PCM WAV for best results.</div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#TranscribeRequest">TranscribeRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#TranscribeResponse">TranscribeResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "text" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Transcribed text
+        <a href="#TranscribeResponse">TranscribeResponse</a>
+    <h4 class="field-label">400</h4>
+    Transcription failed
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
+  <div class="method"><a name="whisperTranscribeSegmentsPost"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="post"><code class="huge"><span class="http-method">post</span> /whisper/transcribeSegments</code></pre></div>
+    <div class="method-summary">Transcribe a WAV file with per-segment timestamps and optional diarization (<span class="nickname">whisperTranscribeSegmentsPost</span>)</div>
+    <div class="method-notes"></div>
+
+
+    <h3 class="field-label">Consumes</h3>
+    This API call consumes the following media types via the <span class="header">Content-Type</span> request header:
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Request body</h3>
+    <div class="field-items">
+      <div class="param">body <a href="#TranscribeSegmentsRequest">TranscribeSegmentsRequest</a> (required)</div>
+      
+            <div class="param-desc"><span class="param-type">Body Parameter</span> &mdash;  </div>
+                </div>  <!-- field-items -->
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#TranscribeSegmentsResponse">TranscribeSegmentsResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "json" : ""
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    JSON document with segments, timestamps, and speaker turns
+        <a href="#TranscribeSegmentsResponse">TranscribeSegmentsResponse</a>
+    <h4 class="field-label">400</h4>
+    Transcription failed
+        <a href="#"></a>
+  </div> <!-- method -->
+  <hr/>
 
   <h2><a name="__Models">Models</a></h2>
   [ Jump to <a href="#__Methods">Methods</a> ]
 
   <h3>Table of Contents</h3>
   <ol>
+    <li><a href="#AnalyzeImageRequest"><code>AnalyzeImageRequest</code></a></li>
+    <li><a href="#ApplyChatTemplateRequest"><code>ApplyChatTemplateRequest</code></a></li>
+    <li><a href="#ApplyChatTemplateResponse"><code>ApplyChatTemplateResponse</code></a></li>
+    <li><a href="#ChatMessage"><code>ChatMessage</code></a></li>
     <li><a href="#EmbedRequest"><code>EmbedRequest</code></a></li>
     <li><a href="#EmbedResponse"><code>EmbedResponse</code></a></li>
+    <li><a href="#GenerateContinueRequest"><code>GenerateContinueRequest</code></a></li>
     <li><a href="#GenerateJsonRequest"><code>GenerateJsonRequest</code></a></li>
     <li><a href="#GenerateJsonWithContextRequest"><code>GenerateJsonWithContextRequest</code></a></li>
     <li><a href="#GenerateRequest"><code>GenerateRequest</code></a></li>
     <li><a href="#GenerateResponse"><code>GenerateResponse</code></a></li>
     <li><a href="#GenerateWithContextRequest"><code>GenerateWithContextRequest</code></a></li>
+    <li><a href="#ImageResponse"><code>ImageResponse</code></a></li>
+    <li><a href="#Img2ImgRequest"><code>Img2ImgRequest</code></a></li>
     <li><a href="#InitModelRequest"><code>InitModelRequest</code></a></li>
     <li><a href="#InitModelResponse"><code>InitModelResponse</code></a></li>
+    <li><a href="#InitMtpRequest"><code>InitMtpRequest</code></a></li>
+    <li><a href="#ModelChatTemplateResponse"><code>ModelChatTemplateResponse</code></a></li>
+    <li><a href="#ModelFinetuneTypeResponse"><code>ModelFinetuneTypeResponse</code></a></li>
+    <li><a href="#MultimodalInitRequest"><code>MultimodalInitRequest</code></a></li>
     <li><a href="#OkResponse"><code>OkResponse</code></a></li>
+    <li><a href="#SessionLoadRequest"><code>SessionLoadRequest</code></a></li>
+    <li><a href="#SessionResult"><code>SessionResult</code></a></li>
+    <li><a href="#SessionSaveRequest"><code>SessionSaveRequest</code></a></li>
+    <li><a href="#StableDiffusionInitRequest"><code>StableDiffusionInitRequest</code></a></li>
+    <li><a href="#SupportsVideoResponse"><code>SupportsVideoResponse</code></a></li>
+    <li><a href="#TranscribeRequest"><code>TranscribeRequest</code></a></li>
+    <li><a href="#TranscribeResponse"><code>TranscribeResponse</code></a></li>
+    <li><a href="#TranscribeSegmentsRequest"><code>TranscribeSegmentsRequest</code></a></li>
+    <li><a href="#TranscribeSegmentsResponse"><code>TranscribeSegmentsResponse</code></a></li>
+    <li><a href="#Txt2ImgRequest"><code>Txt2ImgRequest</code></a></li>
+    <li><a href="#Txt2VideoRequest"><code>Txt2VideoRequest</code></a></li>
     <li><a href="#UpdateParamsRequest"><code>UpdateParamsRequest</code></a></li>
+    <li><a href="#VideoResponse"><code>VideoResponse</code></a></li>
+    <li><a href="#WhisperInitRequest"><code>WhisperInitRequest</code></a></li>
   </ol>
 
+  <div class="model">
+    <h3><a name="AnalyzeImageRequest"><code>AnalyzeImageRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">imageBase64 </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Base64-encoded JPEG, PNG, or BMP bytes. </div>
+<div class="param">prompt </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ApplyChatTemplateRequest"><code>ApplyChatTemplateRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">messages </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">addAssistantPrefix (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ApplyChatTemplateResponse"><code>ApplyChatTemplateResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">prompt (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ChatMessage"><code>ChatMessage</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">role </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+          <div class="param-desc"><span class="param-type">example: user</span></div>
+<div class="param">content </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
   <div class="model">
     <h3><a name="EmbedRequest"><code>EmbedRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
     
@@ -874,6 +2196,13 @@
     
     <div class="field-items">
       <div class="param">embedding </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="GenerateContinueRequest"><code>GenerateContinueRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">prompt </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -918,10 +2247,34 @@
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="ImageResponse"><code>ImageResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">imageBase64 </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Base64-encoded raw RGBA bytes (width × height × 4). </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="Img2ImgRequest"><code>Img2ImgRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">initImageBase64 </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Base64-encoded raw RGBA bytes of the source image (initImageW × initImageH × 4). </div>
+<div class="param">initImageW </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">initImageH </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">prompt </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">negativePrompt (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">width (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">height (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">steps (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">cfgScale (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  format: float</div>
+<div class="param">strength (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  format: float</div>
+<div class="param">seed (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  format: int64</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="InitModelRequest"><code>InitModelRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
     
     <div class="field-items">
-      <div class="param">modelPath </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Absolute path to a GGUF/GGML model on the server </div>
+      <div class="param">modelPath </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Absolute path to a GGUF/GGML model file on the server </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -932,10 +2285,141 @@
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="InitMtpRequest"><code>InitMtpRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">modelPath </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">draftLen (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Maximum draft tokens per speculative step (1–8). </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ModelChatTemplateResponse"><code>ModelChatTemplateResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">chatTemplate (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="ModelFinetuneTypeResponse"><code>ModelFinetuneTypeResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">finetuneType (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="MultimodalInitRequest"><code>MultimodalInitRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">modelPath </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">mmprojPath </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="OkResponse"><code>OkResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
     
     <div class="field-items">
       <div class="param">ok </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="SessionLoadRequest"><code>SessionLoadRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">path </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="SessionResult"><code>SessionResult</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">ok </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="SessionSaveRequest"><code>SessionSaveRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">path </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="StableDiffusionInitRequest"><code>StableDiffusionInitRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">modelPath </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Path to the main model file (.gguf or .safetensors). </div>
+<div class="param">threads (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Number of CPU threads (-1 &#x3D; auto). </div>
+<div class="param">vaePath (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Path to the VAE companion model. Required for video models (Wan 2.1/2.2). </div>
+<div class="param">t5xxlPath (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Path to the T5-XXL text encoder. Required for some video models. </div>
+<div class="param">clipVisionPath (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Path to the CLIP vision encoder. Required for image-to-video model variants. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="SupportsVideoResponse"><code>SupportsVideoResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">supportsVideo </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> True when the currently loaded model supports txt2video generation. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="TranscribeRequest"><code>TranscribeRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">wavPath </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">language (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+          <div class="param-desc"><span class="param-type">example: en</span></div>
+<div class="param">initialPrompt (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="TranscribeResponse"><code>TranscribeResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">text </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="TranscribeSegmentsRequest"><code>TranscribeSegmentsRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">wavPath </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">language (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">initialPrompt (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">translate (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> When true, produces an English translation instead of a verbatim transcript. </div>
+<div class="param">diarize (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Enable speaker diarization (requires a -tdrz model). </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="TranscribeSegmentsResponse"><code>TranscribeSegmentsResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">json </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> JSON document with per-segment text, start/end timestamps (ms), and speaker turn markers. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="Txt2ImgRequest"><code>Txt2ImgRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">prompt </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">negativePrompt (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">width (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">height (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">steps (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">cfgScale (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  format: float</div>
+<div class="param">seed (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  format: int64</div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="Txt2VideoRequest"><code>Txt2VideoRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">prompt </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">negativePrompt (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">width (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">height (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">videoFrames (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Number of frames to generate. </div>
+<div class="param">fps (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Frames per second hint stored in the response header. </div>
+<div class="param">cfgScale (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  format: float</div>
+<div class="param">seed (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  format: int64</div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -947,6 +2431,28 @@
 <div class="param">topP </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  format: float</div>
 <div class="param">topK </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
 <div class="param">repeatPenalty </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  format: float</div>
+<div class="param">contextLength (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">numThreads (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">useMmap (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">flashAttention (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">batchSize (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">gpuLayers (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Number of model layers to offload to GPU. 0 &#x3D; CPU only, -1 &#x3D; all layers. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="VideoResponse"><code>VideoResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">videoBase64 </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Base64-encoded packed frame buffer. After decoding, the binary layout is:
+&lt;code&gt;[frameCount: Int32 LE][width: Int32 LE][height: Int32 LE][fps: Int32 LE]&lt;/code&gt;
+followed by &lt;code&gt;frameCount × width × height × 4&lt;/code&gt; bytes of raw RGBA pixel data. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="WhisperInitRequest"><code>WhisperInitRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">modelPath </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
     </div>  <!-- field-items -->
   </div>
   </body>

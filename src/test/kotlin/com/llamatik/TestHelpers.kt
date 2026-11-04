@@ -13,9 +13,12 @@ import com.llamatik.routes.stableDiffusionRoutes
 import com.llamatik.routes.whisperRoutes
 import com.llamatik.stablediffusion.StableDiffusionServicePort
 import com.llamatik.whisper.WhisperServicePort
+import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.response.respond
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
@@ -29,6 +32,13 @@ fun withTestApp(
 ) = testApplication {
     application {
         install(ContentNegotiation) { json() }
+        // Mirror the StatusPages config from GeneralRoutingConfig so that
+        // IllegalArgumentException thrown by PathValidator returns 400 in tests.
+        install(StatusPages) {
+            exception<IllegalArgumentException> { call, cause ->
+                call.respond(HttpStatusCode.BadRequest, cause.message ?: "Bad request")
+            }
+        }
         routing {
             embeddingRoutes(llama)
             generationRoutes(llama)

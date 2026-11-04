@@ -8,7 +8,9 @@ import com.llamatik.api.OkResponse
 import com.llamatik.core.platform.GenStream
 import com.llamatik.multimodal.MultimodalService
 import com.llamatik.multimodal.MultimodalServicePort
+import com.llamatik.util.PathValidator
 import com.llamatik.util.Sse
+import com.llamatik.util.sanitizedMessage
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
@@ -35,15 +37,26 @@ private const val VLM_RELEASE = "$VLM/release"
 fun Route.multimodalRoutes(service: MultimodalServicePort = MultimodalService) {
     post(VLM_INIT) {
         val req = call.receive<MultimodalInitRequest>()
-        service.initModel(req.modelPath, req.mmprojPath).fold(
+        // Throws IllegalArgumentException on invalid paths — caught by StatusPages → 400
+        service.initModel(
+            modelPath = PathValidator.validateModelPath(req.modelPath),
+            mmprojPath = PathValidator.validateModelPath(req.mmprojPath),
+        ).fold(
             onSuccess = { call.respond(InitModelResponse(ok = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "VLM init failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(VLM_ANALYZE_STREAM) {
         val req = call.receive<AnalyzeImageRequest>()
-        val imageBytes = Base64.getDecoder().decode(req.imageBase64)
+        // Decode before entering the SSE writer — an invalid base64 string must return 400,
+        // not leave an empty stream or an uncaught exception after headers are sent.
+        val imageBytes = try {
+            Base64.getDecoder().decode(req.imageBase64)
+        } catch (e: IllegalArgumentException) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid base64 image data")
+            return@post
+        }
 
         call.respondTextWriter(contentType = ContentType.Text.EventStream) {
             val deltas = Channel<String>(capacity = 64)
@@ -76,14 +89,14 @@ fun Route.multimodalRoutes(service: MultimodalServicePort = MultimodalService) {
     post(VLM_CANCEL) {
         service.cancelAnalysis().fold(
             onSuccess = { call.respond(OkResponse()) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "VLM cancel failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(VLM_RELEASE) {
         service.release().fold(
             onSuccess = { call.respond(OkResponse()) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "VLM release failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 }
