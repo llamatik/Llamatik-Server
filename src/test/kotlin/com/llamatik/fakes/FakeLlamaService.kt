@@ -22,6 +22,8 @@ class FakeLlamaService(
     private val chatTemplateResult: Result<String?> = Result.success("{{messages}}"),
     private val applyChatTemplateResult: Result<String?> = Result.success("<|user|>hi"),
     private val streamDeltas: List<String> = listOf("hello", " world"),
+    private val initMtpResult: Result<Boolean> = Result.success(true),
+    private val shutdownMtpResult: Result<Unit> = Result.success(Unit),
 ) : LlamaServicePort {
 
     override suspend fun initModel(modelPath: String) = initEmbedResult
@@ -67,6 +69,6 @@ class FakeLlamaService(
         callback.onComplete()
     }
 
-    override suspend fun initMtp(modelPath: String, draftLen: Int): Result<Boolean> = Result.success(true)
-    override suspend fun shutdownMtp(): Result<Unit> = Result.success(Unit)
+    override suspend fun initMtp(modelPath: String, draftLen: Int): Result<Boolean> = initMtpResult
+    override suspend fun shutdownMtp(): Result<Unit> = shutdownMtpResult
 }

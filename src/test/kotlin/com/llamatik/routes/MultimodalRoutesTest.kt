@@ -107,4 +107,14 @@ class MultimodalRoutesTest {
         val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("true", body["ok"]?.jsonPrimitive?.content)
     }
+
+    @Test
+    fun `release returns 400 on failure`() = withTestApp(
+        multimodal = FakeMultimodalService(releaseResult = Result.failure(RuntimeException("release error")))
+    ) {
+        val response = client.post("/v1/multimodal/release") {
+            contentType(ContentType.Application.Json)
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
 }

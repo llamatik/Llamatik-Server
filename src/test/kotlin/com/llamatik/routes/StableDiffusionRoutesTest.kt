@@ -144,6 +144,19 @@ class StableDiffusionRoutesTest {
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
+    @Test
+    fun `img2img returns 500 when bytes are empty`() = withTestApp(
+        sd = FakeStableDiffusionService(img2imgResult = Result.success(ByteArray(0)))
+    ) {
+        val initImageBytes = ByteArray(4) { 0 }
+        val b64 = Base64.getEncoder().encodeToString(initImageBytes)
+        val response = client.post("/v1/stablediffusion/img2img") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"initImageBase64":"$b64","initImageW":1,"initImageH":1,"prompt":"x"}""")
+        }
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
+    }
+
     // ── release ─────────────────────────────────────────────────────────────
 
     @Test
@@ -154,6 +167,16 @@ class StableDiffusionRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("true", body["ok"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `release returns 400 on failure`() = withTestApp(
+        sd = FakeStableDiffusionService(releaseResult = Result.failure(RuntimeException("release error")))
+    ) {
+        val response = client.post("/v1/stablediffusion/release") {
+            contentType(ContentType.Application.Json)
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
     // ── supportsVideo ────────────────────────────────────────────────────────
@@ -174,6 +197,14 @@ class StableDiffusionRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("false", body["supportsVideo"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `supportsVideo returns 500 on failure`() = withTestApp(
+        sd = FakeStableDiffusionService(supportsVideoResult = Result.failure(RuntimeException("no model loaded")))
+    ) {
+        val response = client.get("/v1/stablediffusion/supportsVideo")
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
     }
 
     // ── txt2video ────────────────────────────────────────────────────────────

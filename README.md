@@ -531,12 +531,12 @@ The test suite covers all API endpoints using Ktor's `testApplication` with serv
 | Suite | Tests |
 |---|---|
 | `EmbeddingRoutesTest` | 4 |
-| `GenerationRoutesTest` | 31 |
+| `GenerationRoutesTest` | 49 |
 | `WhisperRoutesTest` | 10 |
-| `StableDiffusionRoutesTest` | 17 |
-| `MultimodalRoutesTest` | 7 |
+| `StableDiffusionRoutesTest` | 20 |
+| `MultimodalRoutesTest` | 8 |
 | `SseTest` | 3 |
-| **Total** | **72** |
+| **Total** | **94** |
 
 ---
 

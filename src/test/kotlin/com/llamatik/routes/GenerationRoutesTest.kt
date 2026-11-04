@@ -1,6 +1,8 @@
 package com.llamatik.routes
 
+import com.llamatik.core.platform.GenStream
 import com.llamatik.fakes.FakeLlamaService
+import com.llamatik.llama.LlamaServicePort
 import com.llamatik.withTestApp
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -355,20 +357,9 @@ class GenerationRoutesTest {
 
     @Test
     fun `stream sends error event on service failure`() = withTestApp(
-        llama = FakeLlamaService(
-            streamDeltas = emptyList()
-        ).let {
-            FakeLlamaService(
-                streamDeltas = emptyList(),
-                generateResult = Result.failure(RuntimeException("unused")),
-            ).also { _ ->
-                // Use a service that calls onError immediately
-            }
-        }.let {
-            object : com.llamatik.llama.LlamaServicePort by it {
-                override fun generateStream(prompt: String, callback: com.llamatik.core.platform.GenStream) {
-                    callback.onError("stream broke")
-                }
+        llama = object : LlamaServicePort by FakeLlamaService() {
+            override fun generateStream(prompt: String, callback: GenStream) {
+                callback.onError("stream broke")
             }
         }
     ) {
@@ -379,5 +370,241 @@ class GenerationRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("\"event\":\"error\""))
         assertTrue(response.bodyAsText().contains("stream broke"))
+    }
+
+    // --- generateWithContext failure ---
+
+    @Test
+    fun `generateWithContext returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(generateWithContextResult = Result.failure(RuntimeException("ctx error")))
+    ) {
+        val response = client.post("/v1/generation/generateWithContext") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"systemPrompt":"s","contextBlock":"c","userPrompt":"u"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("ctx error"))
+    }
+
+    // --- generateJson failure ---
+
+    @Test
+    fun `generateJson returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(generateJsonResult = Result.failure(RuntimeException("json error")))
+    ) {
+        val response = client.post("/v1/generation/generateJson") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"prompt":"x"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    // --- generateJsonWithContext failure ---
+
+    @Test
+    fun `generateJsonWithContext returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(generateJsonWithContextResult = Result.failure(RuntimeException("json ctx error")))
+    ) {
+        val response = client.post("/v1/generation/generateJsonWithContext") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"systemPrompt":"s","contextBlock":"c","userPrompt":"u"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    // --- continue failure ---
+
+    @Test
+    fun `generateContinue returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(generateContinueResult = Result.failure(RuntimeException("continue error")))
+    ) {
+        val response = client.post("/v1/generation/continue") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"prompt":"and then?"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    // --- params failure ---
+
+    @Test
+    fun `update params returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(updateParamsResult = Result.failure(RuntimeException("params error")))
+    ) {
+        val response = client.post("/v1/generation/params") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"temperature":0.7,"maxTokens":256,"topP":0.95,"topK":40,"repeatPenalty":1.0}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    // --- cancel failure ---
+
+    @Test
+    fun `cancel returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(cancelResult = Result.failure(RuntimeException("cancel error")))
+    ) {
+        val response = client.post("/v1/generation/cancel") {
+            contentType(ContentType.Application.Json)
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    // --- shutdown failure ---
+
+    @Test
+    fun `shutdown returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(shutdownResult = Result.failure(RuntimeException("shutdown error")))
+    ) {
+        val response = client.post("/v1/generation/shutdown") {
+            contentType(ContentType.Application.Json)
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    // --- session failures ---
+
+    @Test
+    fun `session reset returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(sessionResetResult = Result.failure(RuntimeException("reset error")))
+    ) {
+        val response = client.post("/v1/generation/session/reset") {
+            contentType(ContentType.Application.Json)
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `session load returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(sessionLoadResult = Result.failure(RuntimeException("load error")))
+    ) {
+        val response = client.post("/v1/generation/session/load") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"path":"/tmp/session.bin"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("load error"))
+    }
+
+    // --- model metadata failures ---
+
+    @Test
+    fun `finetune type returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(finetuneTypeResult = Result.failure(RuntimeException("finetune error")))
+    ) {
+        val response = client.get("/v1/generation/model/finetuneType")
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `chat template returns null when not set`() = withTestApp(
+        llama = FakeLlamaService(chatTemplateResult = Result.success(null))
+    ) {
+        val response = client.get("/v1/generation/model/chatTemplate")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertTrue(body.containsKey("chatTemplate"))
+    }
+
+    @Test
+    fun `chat template returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(chatTemplateResult = Result.failure(RuntimeException("template error")))
+    ) {
+        val response = client.get("/v1/generation/model/chatTemplate")
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    // --- MTP failures ---
+
+    @Test
+    fun `mtp init returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(initMtpResult = Result.failure(RuntimeException("mtp load error")))
+    ) {
+        val response = client.post("/v1/generation/mtp/init") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"modelPath":"/models/llama.gguf","draftLen":3}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("mtp load error"))
+    }
+
+    @Test
+    fun `mtp shutdown returns 400 on failure`() = withTestApp(
+        llama = FakeLlamaService(shutdownMtpResult = Result.failure(RuntimeException("mtp shutdown error")))
+    ) {
+        val response = client.post("/v1/generation/mtp/shutdown") {
+            contentType(ContentType.Application.Json)
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    // --- SSE error events ---
+
+    @Test
+    fun `streamWithContext sends error event on service failure`() = withTestApp(
+        llama = object : LlamaServicePort by FakeLlamaService() {
+            override fun generateStreamWithContext(systemPrompt: String, contextBlock: String, userPrompt: String, callback: GenStream) {
+                callback.onError("stream broke")
+            }
+        }
+    ) {
+        val response = client.post("/v1/generation/streamWithContext") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"systemPrompt":"sys","contextBlock":"ctx","userPrompt":"user"}""")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"event\":\"error\""))
+        assertTrue(response.bodyAsText().contains("stream broke"))
+    }
+
+    @Test
+    fun `jsonStream sends error event on service failure`() = withTestApp(
+        llama = object : LlamaServicePort by FakeLlamaService() {
+            override fun generateJsonStream(prompt: String, jsonSchema: String?, callback: GenStream) {
+                callback.onError("json stream broke")
+            }
+        }
+    ) {
+        val response = client.post("/v1/generation/jsonStream") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"prompt":"x"}""")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"event\":\"error\""))
+        assertTrue(response.bodyAsText().contains("json stream broke"))
+    }
+
+    @Test
+    fun `jsonStreamWithContext sends error event on service failure`() = withTestApp(
+        llama = object : LlamaServicePort by FakeLlamaService() {
+            override fun generateJsonStreamWithContext(systemPrompt: String, contextBlock: String, userPrompt: String, jsonSchema: String?, callback: GenStream) {
+                callback.onError("json ctx stream broke")
+            }
+        }
+    ) {
+        val response = client.post("/v1/generation/jsonStreamWithContext") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"systemPrompt":"s","contextBlock":"c","userPrompt":"u"}""")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"event\":\"error\""))
+        assertTrue(response.bodyAsText().contains("json ctx stream broke"))
+    }
+
+    @Test
+    fun `continueStream sends error event on service failure`() = withTestApp(
+        llama = object : LlamaServicePort by FakeLlamaService() {
+            override fun generateContinueStream(prompt: String, callback: GenStream) {
+                callback.onError("continue stream broke")
+            }
+        }
+    ) {
+        val response = client.post("/v1/generation/continueStream") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"prompt":"continue this"}""")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"event\":\"error\""))
+        assertTrue(response.bodyAsText().contains("continue stream broke"))
     }
 }
