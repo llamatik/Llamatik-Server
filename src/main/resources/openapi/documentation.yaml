@@ -2,17 +2,26 @@ openapi: 3.1.1
 info:
   title: Llamatik API
   description: |
-    Lightweight llama.cpp HTTP server exposing the same surface as the Llamatik `LlamaBridge` API.
-    
+    Self-hosted inference server exposing the same surface as the Llamatik `LlamaBridge`,
+    `WhisperBridge`, `StableDiffusionBridge`, and `MultimodalBridge` APIs.
+
     - JSON endpoints for embeddings and generation
     - SSE streaming endpoints for token/delta streaming
-  version: 0.1.0
+    - Text-to-image and text-to-video generation (stable-diffusion.cpp)
+    - Speech-to-text transcription (whisper.cpp)
+    - Multimodal / VLM image analysis (streaming SSE)
+  version: 2.2.0
 servers:
-  - url: http://api.llamatik.com/v1
-    description: Lightweight llama.cpp HTTP server
+  - url: http://localhost:8080/v1
+    description: Local Llamatik Server instance
+
 paths:
+
+  # ── Embeddings ─────────────────────────────────────────────────────────────
+
   /embeddings/init:
     post:
+      tags: [Embeddings]
       summary: Initialize an embedding model
       requestBody:
         required: true
@@ -27,10 +36,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InitModelResponse'
+        '400':
+          description: Init failed
 
   /embeddings/embed:
     post:
-      summary: Create an embedding for a given input string
+      tags: [Embeddings]
+      summary: Compute an embedding vector for a given input string
       requestBody:
         required: true
         content:
@@ -44,9 +56,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EmbedResponse'
+        '400':
+          description: Embed failed
+
+  # ── Generation ─────────────────────────────────────────────────────────────
 
   /generation/init:
     post:
+      tags: [Generation]
       summary: Initialize a generation model
       requestBody:
         required: true
@@ -61,10 +78,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InitModelResponse'
+        '400':
+          description: Init failed
 
   /generation/generate:
     post:
-      summary: Generate a completion for a prompt
+      tags: [Generation]
+      summary: Generate a one-shot completion for a prompt
       requestBody:
         required: true
         content:
@@ -81,6 +101,7 @@ paths:
 
   /generation/generateWithContext:
     post:
+      tags: [Generation]
       summary: Generate a completion given system prompt + context + user prompt
       requestBody:
         required: true
@@ -98,6 +119,7 @@ paths:
 
   /generation/generateJson:
     post:
+      tags: [Generation]
       summary: Generate JSON (optionally constrained by a JSON schema)
       requestBody:
         required: true
@@ -115,7 +137,8 @@ paths:
 
   /generation/generateJsonWithContext:
     post:
-      summary: Generate JSON with system prompt + context + user prompt (optionally constrained by schema)
+      tags: [Generation]
+      summary: Generate JSON with system prompt + context + user prompt
       requestBody:
         required: true
         content:
@@ -130,36 +153,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/GenerateResponse'
 
-  /generation/params:
+  /generation/continue:
     post:
-      summary: Update generation parameters
+      tags: [Generation]
+      summary: Continue generation from the existing KV cache
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateParamsRequest'
+              $ref: '#/components/schemas/GenerateContinueRequest'
       responses:
         '200':
-          description: OK
+          description: Generated text
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OkResponse'
-
-  /generation/cancel:
-    post:
-      summary: Cancel an in-progress generation
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OkResponse'
+                $ref: '#/components/schemas/GenerateResponse'
 
   /generation/stream:
     post:
+      tags: [Generation]
       summary: Stream a completion as Server-Sent Events (SSE)
       description: Emits SSE events `delta`, then `done`.
       requestBody:
@@ -178,6 +192,7 @@ paths:
 
   /generation/streamWithContext:
     post:
+      tags: [Generation]
       summary: Stream a completion with context as Server-Sent Events (SSE)
       requestBody:
         required: true
@@ -195,6 +210,7 @@ paths:
 
   /generation/jsonStream:
     post:
+      tags: [Generation]
       summary: Stream JSON generation as Server-Sent Events (SSE)
       requestBody:
         required: true
@@ -212,6 +228,7 @@ paths:
 
   /generation/jsonStreamWithContext:
     post:
+      tags: [Generation]
       summary: Stream JSON generation with context as Server-Sent Events (SSE)
       requestBody:
         required: true
@@ -226,19 +243,480 @@ paths:
             text/event-stream:
               schema:
                 type: string
+
+  /generation/continueStream:
+    post:
+      tags: [Generation]
+      summary: Stream a continuation from the KV cache as Server-Sent Events (SSE)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateContinueRequest'
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /generation/params:
+    post:
+      tags: [Generation]
+      summary: Update generation parameters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateParamsRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /generation/cancel:
+    post:
+      tags: [Generation]
+      summary: Cancel an in-progress generation
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /generation/shutdown:
+    post:
+      tags: [Generation]
+      summary: Unload the generation model and free native resources
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /generation/session/reset:
+    post:
+      tags: [Generation - Session]
+      summary: Clear the KV session state (keeps model loaded)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResult'
+
+  /generation/session/save:
+    post:
+      tags: [Generation - Session]
+      summary: Persist KV session state to disk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionSaveRequest'
+      responses:
+        '200':
+          description: Save status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResult'
+
+  /generation/session/load:
+    post:
+      tags: [Generation - Session]
+      summary: Restore KV session state from disk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionLoadRequest'
+      responses:
+        '200':
+          description: Load status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResult'
+
+  /generation/model/finetuneType:
+    get:
+      tags: [Generation - Model Metadata]
+      summary: Returns the `general.finetune` GGUF metadata field
+      responses:
+        '200':
+          description: Fine-tune type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelFinetuneTypeResponse'
+
+  /generation/model/chatTemplate:
+    get:
+      tags: [Generation - Model Metadata]
+      summary: Returns the Jinja chat template embedded in the model
+      responses:
+        '200':
+          description: Chat template string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelChatTemplateResponse'
+
+  /generation/model/applyChatTemplate:
+    post:
+      tags: [Generation - Model Metadata]
+      summary: Render messages into a prompt string using the model's built-in chat template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyChatTemplateRequest'
+      responses:
+        '200':
+          description: Rendered prompt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyChatTemplateResponse'
+
+  /generation/mtp/init:
+    post:
+      tags: [Generation - MTP]
+      summary: Initialize a Multi-Token Prediction (MTP) speculative decoding head
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitMtpRequest'
+      responses:
+        '200':
+          description: MTP init status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          description: Init failed
+
+  /generation/mtp/shutdown:
+    post:
+      tags: [Generation - MTP]
+      summary: Release MTP speculative decoding resources
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  # ── Whisper (STT) ──────────────────────────────────────────────────────────
+
+  /whisper/init:
+    post:
+      tags: [Whisper]
+      summary: Load a Whisper speech-to-text model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhisperInitRequest'
+      responses:
+        '200':
+          description: Init status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitModelResponse'
+        '400':
+          description: Init failed
+
+  /whisper/transcribe:
+    post:
+      tags: [Whisper]
+      summary: Transcribe a WAV file to flat text
+      description: Provide a 16 kHz mono 16-bit PCM WAV for best results.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranscribeRequest'
+      responses:
+        '200':
+          description: Transcribed text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscribeResponse'
+        '400':
+          description: Transcription failed
+
+  /whisper/transcribeSegments:
+    post:
+      tags: [Whisper]
+      summary: Transcribe a WAV file with per-segment timestamps and optional diarization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranscribeSegmentsRequest'
+      responses:
+        '200':
+          description: JSON document with segments, timestamps, and speaker turns
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscribeSegmentsResponse'
+        '400':
+          description: Transcription failed
+
+  /whisper/release:
+    post:
+      tags: [Whisper]
+      summary: Free Whisper native resources
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  # ── Stable Diffusion ───────────────────────────────────────────────────────
+
+  /stablediffusion/init:
+    post:
+      tags: [Stable Diffusion]
+      summary: Load a Stable Diffusion model
+      description: |
+        For image-only models (SDXL, Flux, …) only `modelPath` and `threads` are required.
+        Video models (Wan 2.1/2.2) additionally require `vaePath` and typically `t5xxlPath`.
+        Pass `clipVisionPath` only for image-to-video variants.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StableDiffusionInitRequest'
+      responses:
+        '200':
+          description: Init status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitModelResponse'
+        '400':
+          description: Init failed
+
+  /stablediffusion/txt2img:
+    post:
+      tags: [Stable Diffusion]
+      summary: Generate an image from a text prompt
+      description: Response contains Base64-encoded raw RGBA bytes (`width × height × 4`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Txt2ImgRequest'
+      responses:
+        '200':
+          description: Generated image
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageResponse'
+        '400':
+          description: Generation failed
+        '500':
+          description: Generation produced no output
+
+  /stablediffusion/img2img:
+    post:
+      tags: [Stable Diffusion]
+      summary: Generate an image conditioned on an existing image and a prompt
+      description: |
+        `initImageBase64` must be Base64-encoded raw RGBA bytes with dimensions `initImageW × initImageH × 4`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Img2ImgRequest'
+      responses:
+        '200':
+          description: Generated image
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageResponse'
+        '400':
+          description: Generation failed
+        '500':
+          description: Generation produced no output
+
+  /stablediffusion/supportsVideo:
+    get:
+      tags: [Stable Diffusion]
+      summary: Check whether the loaded model supports video generation
+      description: |
+        Call this after `/stablediffusion/init`. Returns `true` for video-capable models
+        (e.g. Wan 2.1/2.2). Standard image-only models return `false`.
+      responses:
+        '200':
+          description: Video capability flag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportsVideoResponse'
+        '500':
+          description: Check failed (no model loaded or internal error)
+
+  /stablediffusion/txt2video:
+    post:
+      tags: [Stable Diffusion]
+      summary: Generate a video from a text prompt
+      description: |
+        Requires a video-capable model loaded via `/stablediffusion/init` with companion files.
+        The response contains the full packed frame buffer Base64-encoded.
+
+        **Binary layout of the decoded `videoBase64` value:**
+        ```
+        [frameCount: Int32 LE][width: Int32 LE][height: Int32 LE][fps: Int32 LE]
+        [frame_0_rgba: width * height * 4 bytes]
+        [frame_1_rgba: width * height * 4 bytes]
+        ...
+        ```
+
+        Returns HTTP 500 when the model produces no output.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Txt2VideoRequest'
+      responses:
+        '200':
+          description: Generated video (packed frames)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoResponse'
+        '400':
+          description: Generation failed
+        '500':
+          description: Generation produced no output
+
+  /stablediffusion/release:
+    post:
+      tags: [Stable Diffusion]
+      summary: Free Stable Diffusion native resources
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  # ── Multimodal (VLM) ────────────────────────────────────────────────────────
+
+  /multimodal/init:
+    post:
+      tags: [Multimodal]
+      summary: Load a VLM model and its multimodal projector
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MultimodalInitRequest'
+      responses:
+        '200':
+          description: Init status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitModelResponse'
+        '400':
+          description: Init failed
+
+  /multimodal/analyzeStream:
+    post:
+      tags: [Multimodal]
+      summary: Analyze an image and stream the description as Server-Sent Events (SSE)
+      description: |
+        `imageBase64` must be Base64-encoded JPEG, PNG, or BMP bytes.
+        Uses the same SSE event format as generation streaming (`delta` / `done` / `error`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeImageRequest'
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /multimodal/cancel:
+    post:
+      tags: [Multimodal]
+      summary: Cancel an in-progress image analysis
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /multimodal/release:
+    post:
+      tags: [Multimodal]
+      summary: Free VLM native resources
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
 components:
-  securitySchemes:
-    BasicAuth:
-      type: http
-      scheme: basic
   schemas:
+
+    # ── Shared ───────────────────────────────────────────────────────────────
+
     InitModelRequest:
       type: object
       required: [modelPath]
       properties:
         modelPath:
           type: string
-          description: Absolute path to a GGUF/GGML model on the server
+          description: Absolute path to a GGUF/GGML model file on the server
 
     InitModelResponse:
       type: object
@@ -246,6 +724,15 @@ components:
       properties:
         ok:
           type: boolean
+
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+
+    # ── Embeddings ───────────────────────────────────────────────────────────
 
     EmbedRequest:
       type: object
@@ -263,6 +750,8 @@ components:
           items:
             type: number
             format: float
+
+    # ── Generation ───────────────────────────────────────────────────────────
 
     GenerateRequest:
       type: object
@@ -306,6 +795,13 @@ components:
           type: string
           nullable: true
 
+    GenerateContinueRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+
     GenerateResponse:
       type: object
       required: [text]
@@ -330,13 +826,327 @@ components:
         repeatPenalty:
           type: number
           format: float
+        contextLength:
+          type: integer
+          default: 4096
+        numThreads:
+          type: integer
+          default: 4
+        useMmap:
+          type: boolean
+          default: true
+        flashAttention:
+          type: boolean
+          default: false
+        batchSize:
+          type: integer
+          default: 512
+        gpuLayers:
+          type: integer
+          default: 0
+          description: Number of model layers to offload to GPU. 0 = CPU only, -1 = all layers.
 
-    OkResponse:
+    SessionSaveRequest:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+
+    SessionLoadRequest:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+
+    SessionResult:
       type: object
       required: [ok]
       properties:
         ok:
           type: boolean
 
-security:
-  - BasicAuth: [ ]
+    ModelFinetuneTypeResponse:
+      type: object
+      properties:
+        finetuneType:
+          type: string
+          nullable: true
+
+    ModelChatTemplateResponse:
+      type: object
+      properties:
+        chatTemplate:
+          type: string
+          nullable: true
+
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          example: user
+        content:
+          type: string
+
+    ApplyChatTemplateRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        addAssistantPrefix:
+          type: boolean
+          default: true
+
+    ApplyChatTemplateResponse:
+      type: object
+      properties:
+        prompt:
+          type: string
+          nullable: true
+
+    InitMtpRequest:
+      type: object
+      required: [modelPath]
+      properties:
+        modelPath:
+          type: string
+        draftLen:
+          type: integer
+          default: 3
+          description: Maximum draft tokens per speculative step (1–8).
+
+    # ── Whisper ──────────────────────────────────────────────────────────────
+
+    WhisperInitRequest:
+      type: object
+      required: [modelPath]
+      properties:
+        modelPath:
+          type: string
+
+    TranscribeRequest:
+      type: object
+      required: [wavPath]
+      properties:
+        wavPath:
+          type: string
+        language:
+          type: string
+          nullable: true
+          example: en
+        initialPrompt:
+          type: string
+          nullable: true
+
+    TranscribeResponse:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+
+    TranscribeSegmentsRequest:
+      type: object
+      required: [wavPath]
+      properties:
+        wavPath:
+          type: string
+        language:
+          type: string
+          nullable: true
+        initialPrompt:
+          type: string
+          nullable: true
+        translate:
+          type: boolean
+          default: false
+          description: When true, produces an English translation instead of a verbatim transcript.
+        diarize:
+          type: boolean
+          default: false
+          description: Enable speaker diarization (requires a -tdrz model).
+
+    TranscribeSegmentsResponse:
+      type: object
+      required: [json]
+      properties:
+        json:
+          type: string
+          description: JSON document with per-segment text, start/end timestamps (ms), and speaker turn markers.
+
+    # ── Stable Diffusion ─────────────────────────────────────────────────────
+
+    StableDiffusionInitRequest:
+      type: object
+      required: [modelPath]
+      properties:
+        modelPath:
+          type: string
+          description: Path to the main model file (.gguf or .safetensors).
+        threads:
+          type: integer
+          default: -1
+          description: Number of CPU threads (-1 = auto).
+        vaePath:
+          type: string
+          nullable: true
+          description: Path to the VAE companion model. Required for video models (Wan 2.1/2.2).
+        t5xxlPath:
+          type: string
+          nullable: true
+          description: Path to the T5-XXL text encoder. Required for some video models.
+        clipVisionPath:
+          type: string
+          nullable: true
+          description: Path to the CLIP vision encoder. Required for image-to-video model variants.
+
+    Txt2ImgRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+        negativePrompt:
+          type: string
+          nullable: true
+        width:
+          type: integer
+          default: 512
+        height:
+          type: integer
+          default: 512
+        steps:
+          type: integer
+          default: 20
+        cfgScale:
+          type: number
+          format: float
+          default: 7.0
+        seed:
+          type: integer
+          format: int64
+          default: -1
+
+    Img2ImgRequest:
+      type: object
+      required: [initImageBase64, initImageW, initImageH, prompt]
+      properties:
+        initImageBase64:
+          type: string
+          description: Base64-encoded raw RGBA bytes of the source image (initImageW × initImageH × 4).
+        initImageW:
+          type: integer
+        initImageH:
+          type: integer
+        prompt:
+          type: string
+        negativePrompt:
+          type: string
+          nullable: true
+        width:
+          type: integer
+          default: 512
+        height:
+          type: integer
+          default: 512
+        steps:
+          type: integer
+          default: 20
+        cfgScale:
+          type: number
+          format: float
+          default: 7.0
+        strength:
+          type: number
+          format: float
+          default: 0.75
+        seed:
+          type: integer
+          format: int64
+          default: -1
+
+    ImageResponse:
+      type: object
+      required: [imageBase64]
+      properties:
+        imageBase64:
+          type: string
+          description: Base64-encoded raw RGBA bytes (width × height × 4).
+
+    Txt2VideoRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+        negativePrompt:
+          type: string
+          nullable: true
+        width:
+          type: integer
+          default: 512
+        height:
+          type: integer
+          default: 512
+        videoFrames:
+          type: integer
+          default: 16
+          description: Number of frames to generate.
+        fps:
+          type: integer
+          default: 8
+          description: Frames per second hint stored in the response header.
+        cfgScale:
+          type: number
+          format: float
+          default: 7.0
+        seed:
+          type: integer
+          format: int64
+          default: -1
+
+    VideoResponse:
+      type: object
+      required: [videoBase64]
+      properties:
+        videoBase64:
+          type: string
+          description: |
+            Base64-encoded packed frame buffer. After decoding, the binary layout is:
+            `[frameCount: Int32 LE][width: Int32 LE][height: Int32 LE][fps: Int32 LE]`
+            followed by `frameCount × width × height × 4` bytes of raw RGBA pixel data.
+
+    SupportsVideoResponse:
+      type: object
+      required: [supportsVideo]
+      properties:
+        supportsVideo:
+          type: boolean
+          description: True when the currently loaded model supports txt2video generation.
+
+    # ── Multimodal ───────────────────────────────────────────────────────────
+
+    MultimodalInitRequest:
+      type: object
+      required: [modelPath, mmprojPath]
+      properties:
+        modelPath:
+          type: string
+        mmprojPath:
+          type: string
+
+    AnalyzeImageRequest:
+      type: object
+      required: [imageBase64, prompt]
+      properties:
+        imageBase64:
+          type: string
+          description: Base64-encoded JPEG, PNG, or BMP bytes.
+        prompt:
+          type: string
