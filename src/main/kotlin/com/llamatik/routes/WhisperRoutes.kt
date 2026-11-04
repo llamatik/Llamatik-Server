@@ -8,6 +8,8 @@ import com.llamatik.api.TranscribeResponse
 import com.llamatik.api.TranscribeSegmentsRequest
 import com.llamatik.api.TranscribeSegmentsResponse
 import com.llamatik.api.WhisperInitRequest
+import com.llamatik.util.PathValidator
+import com.llamatik.util.sanitizedMessage
 import com.llamatik.whisper.WhisperService
 import com.llamatik.whisper.WhisperServicePort
 import io.ktor.http.HttpStatusCode
@@ -25,32 +27,40 @@ private const val WHISPER_RELEASE = "$WHISPER/release"
 fun Route.whisperRoutes(service: WhisperServicePort = WhisperService) {
     post(WHISPER_INIT) {
         val req = call.receive<WhisperInitRequest>()
-        service.initModel(req.modelPath).fold(
+        // Throws IllegalArgumentException on invalid path — caught by StatusPages → 400
+        service.initModel(PathValidator.validateModelPath(req.modelPath)).fold(
             onSuccess = { call.respond(InitModelResponse(ok = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Whisper init failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(WHISPER_TRANSCRIBE) {
         val req = call.receive<TranscribeRequest>()
-        service.transcribeWav(req.wavPath, req.language, req.initialPrompt).fold(
+        // wavPath also validated; StatusPages handles any IllegalArgumentException
+        service.transcribeWav(PathValidator.validateModelPath(req.wavPath), req.language, req.initialPrompt).fold(
             onSuccess = { call.respond(TranscribeResponse(text = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Transcription failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(WHISPER_TRANSCRIBE_SEGMENTS) {
         val req = call.receive<TranscribeSegmentsRequest>()
-        service.transcribeWavSegments(req.wavPath, req.language, req.initialPrompt, req.translate, req.diarize).fold(
+        service.transcribeWavSegments(
+            PathValidator.validateModelPath(req.wavPath),
+            req.language,
+            req.initialPrompt,
+            req.translate,
+            req.diarize,
+        ).fold(
             onSuccess = { call.respond(TranscribeSegmentsResponse(json = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Segment transcription failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(WHISPER_RELEASE) {
         service.release().fold(
             onSuccess = { call.respond(OkResponse()) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.message ?: "Whisper release failed") }
+            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 }

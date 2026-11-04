@@ -119,6 +119,16 @@ class StableDiffusionRoutesTest {
     // ── img2img ─────────────────────────────────────────────────────────────
 
     @Test
+    fun `img2img returns 400 on invalid base64 input`() = withTestApp {
+        val response = client.post("/v1/stablediffusion/img2img") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"initImageBase64":"not!!valid==base64","initImageW":1,"initImageH":1,"prompt":"x"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("Invalid base64 image data"))
+    }
+
+    @Test
     fun `img2img returns base64 image`() = withTestApp {
         val initImageBytes = ByteArray(64 * 64 * 4) { 0x80.toByte() }
         val initImageB64 = Base64.getEncoder().encodeToString(initImageBytes)
@@ -175,6 +185,18 @@ class StableDiffusionRoutesTest {
     ) {
         val response = client.post("/v1/stablediffusion/release") {
             contentType(ContentType.Application.Json)
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    // ── path validation ──────────────────────────────────────────────────────
+
+    @Test
+    fun `init returns 400 on path with null byte`() = withTestApp {
+        val response = client.post("/v1/stablediffusion/init") {
+            contentType(ContentType.Application.Json)
+            // JSON \u0000 is a valid JSON escape for the null character
+            setBody("{\"modelPath\":\"/models/\u0000evil.gguf\"}")
         }
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }

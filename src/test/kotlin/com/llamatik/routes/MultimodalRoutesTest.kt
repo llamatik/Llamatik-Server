@@ -48,6 +48,16 @@ class MultimodalRoutesTest {
     }
 
     @Test
+    fun `analyzeStream returns 400 on invalid base64 input`() = withTestApp {
+        val response = client.post("/v1/multimodal/analyzeStream") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"imageBase64":"not!!valid==base64","prompt":"what is this?"}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("Invalid base64 image data"))
+    }
+
+    @Test
     fun `analyzeStream returns SSE delta and done events`() = withTestApp {
         val response = client.post("/v1/multimodal/analyzeStream") {
             contentType(ContentType.Application.Json)

@@ -131,6 +131,9 @@ sudo systemctl enable docker.llamatik
 | `DB_PASSWORD` | | Database password |
 | `DB_MAX_POOL_SIZE` | | HikariCP pool size (default: `3`) |
 | `ENABLE_SHUTDOWN_URL` | | Set to `"true"` to enable `POST /ktor/application/shutdown` |
+| `REQUIRE_INFERENCE_AUTH` | | Set to `"true"` to require a valid JWT Bearer token on all inference endpoints. **Always set this for internet-facing deployments.** LAN-only deployments may leave it unset. |
+| `MODELS_DIR` | | Absolute path to the directory that holds model files, WAV files, and companion files (e.g. `/srv/models`). When set, all caller-supplied file paths are validated to resolve inside this directory, preventing path traversal. Strongly recommended for all deployments. |
+| `SESSIONS_DIR` | | Absolute path for KV-session save/load files. Defaults to `$MODELS_DIR/sessions` when `MODELS_DIR` is set. When neither is configured, session paths are unconstrained. |
 
 ---
 
@@ -533,10 +536,11 @@ The test suite covers all API endpoints using Ktor's `testApplication` with serv
 | `EmbeddingRoutesTest` | 4 |
 | `GenerationRoutesTest` | 49 |
 | `WhisperRoutesTest` | 10 |
-| `StableDiffusionRoutesTest` | 20 |
-| `MultimodalRoutesTest` | 8 |
+| `StableDiffusionRoutesTest` | 22 |
+| `MultimodalRoutesTest` | 9 |
+| `PathValidatorTest` | 10 |
 | `SseTest` | 3 |
-| **Total** | **94** |
+| **Total** | **107** |
 
 ---
 
@@ -556,6 +560,40 @@ You can:
 - Run inference locally via llama.cpp / whisper.cpp / stable-diffusion.cpp
 - Fall back to this server when more power is needed
 - Switch dynamically based on connectivity or hardware capability
+
+---
+
+## 🔒 Security Model
+
+Llamatik Server is designed for two deployment topologies:
+
+| Topology | Recommended settings |
+|---|---|
+| **Trusted LAN** (home / office network) | Leave `REQUIRE_INFERENCE_AUTH` unset; set `MODELS_DIR` |
+| **Internet-facing** | `REQUIRE_INFERENCE_AUTH=true` + reverse proxy with TLS + `MODELS_DIR` + `SESSIONS_DIR` |
+
+### Path containment
+
+Set `MODELS_DIR` to an absolute directory (e.g. `/srv/models`). Llamatik Server will reject any caller-supplied path (`modelPath`, `vaePath`, `wavPath`, session `path`, …) that does not resolve inside that directory, preventing path traversal into the host filesystem.
+
+```bash
+export MODELS_DIR=/srv/models
+export SESSIONS_DIR=/srv/models/sessions   # optional, defaults to $MODELS_DIR/sessions
+```
+
+### Inference authentication
+
+When `REQUIRE_INFERENCE_AUTH=true` every inference endpoint (`/v1/embeddings`, `/v1/generation`, `/v1/whisper`, `/v1/stablediffusion`, `/v1/multimodal`) requires the same JWT Bearer token as the profile/user endpoints.
+
+```bash
+export REQUIRE_INFERENCE_AUTH=true
+```
+
+Pass the token obtained from `POST /v1/users/login` as an `Authorization: Bearer <token>` header on all inference requests.
+
+### Error messages
+
+JNI error messages from the native runtimes are sanitized before being returned to HTTP callers — absolute filesystem paths are replaced with `[path]` — so internal host layout is never exposed in API error responses.
 
 ---
 
