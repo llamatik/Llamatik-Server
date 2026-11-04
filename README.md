@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ferranpons/llamatik/main/assets/llamatik-new-logo.png" alt="Llamatik Logo" width="150"/>
+  <img src="https://raw.githubusercontent.com/llamatik/Llamatik/main/assets/llamatik-new-logo.png" alt="Llamatik Logo" width="150"/>
 </p>
 
 <h1 align="center">Llamatik Server</h1>
@@ -20,14 +20,14 @@
   <img src="https://img.shields.io/badge/STT-whisper.cpp-blue" alt="whisper badge"/>
   <img src="https://img.shields.io/badge/Image-stablediffusion.cpp-purple" alt="sd badge"/>
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" alt="license badge"/>
-  <img src="https://img.shields.io/github/actions/workflow/status/ferranpons/Llamatik-Server/ci.yml?label=CI" alt="ci badge"/>
+  <img src="https://img.shields.io/github/actions/workflow/status/llamatik/Llamatik-Server/ci.yml?label=CI" alt="ci badge"/>
 </p>
 
 ---
 
 ## ✨ What is Llamatik Server?
 
-**Llamatik Server** is a self-hosted HTTP backend that exposes the **same API as the [Llamatik Kotlin library](https://github.com/ferranpons/Llamatik)**. Deploy it on any machine and point your app at it — no client-side code changes required.
+**Llamatik Server** is a self-hosted HTTP backend that exposes the **same API as the [Llamatik Kotlin library](https://github.com/llamatik/Llamatik)**. Deploy it on any machine and point your app at it — no client-side code changes required.
 
 It covers the full `LlamaBridge`, `WhisperBridge`, `StableDiffusionBridge`, and `MultimodalBridge` surface: LLM generation, embeddings, speech-to-text, image generation, **video generation**, and multimodal vision — all over HTTP.
 
@@ -623,7 +623,7 @@ llama.cpp / whisper.cpp / stable-diffusion.cpp runtimes
 ## 📦 Related Projects
 
 - 🔗 **Llamatik Library** — Kotlin Multiplatform AI SDK
-  https://github.com/ferranpons/llamatik
+  https://github.com/llamatik/Llamatik
 
 ---
 
