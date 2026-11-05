@@ -122,6 +122,8 @@ sudo systemctl enable docker.llamatik
 
 ## 🌍 Environment Variables
 
+### Server & Auth
+
 | Variable | Required | Description |
 |---|---|---|
 | `JWT_SECRET` | ✅ | HMAC-512 secret for JWT signing |
@@ -134,6 +136,70 @@ sudo systemctl enable docker.llamatik
 | `REQUIRE_INFERENCE_AUTH` | | Set to `"true"` to require a valid JWT Bearer token on all inference endpoints. **Always set this for internet-facing deployments.** LAN-only deployments may leave it unset. |
 | `MODELS_DIR` | | Absolute path to the directory that holds model files, WAV files, and companion files (e.g. `/srv/models`). When set, all caller-supplied file paths are validated to resolve inside this directory, preventing path traversal. Strongly recommended for all deployments. |
 | `SESSIONS_DIR` | | Absolute path for KV-session save/load files. Defaults to `$MODELS_DIR/sessions` when `MODELS_DIR` is set. When neither is configured, session paths are unconstrained. |
+
+### Startup Model Loading
+
+Set any of these to pre-load a model at server start. The server will not accept connections until all configured models are loaded, so inference endpoints are **immediately ready** without a client-side `/init` call.
+
+| Variable | Bridge | Notes |
+|---|---|---|
+| `GENERATION_MODEL_PATH` | LlamaBridge | LLM generation model (`.gguf`) |
+| `EMBEDDING_MODEL_PATH` | LlamaBridge | Embedding / RAG model (`.gguf`) |
+| `WHISPER_MODEL_PATH` | WhisperBridge | Whisper STT model (`.bin`) |
+| `SD_MODEL_PATH` | StableDiffusionBridge | Image or video model (`.gguf` / `.safetensors`) |
+| `SD_VAE_PATH` | StableDiffusionBridge | VAE companion — required for Wan 2.1/2.2 video models |
+| `SD_T5XXL_PATH` | StableDiffusionBridge | T5-XXL companion — required for some video models |
+| `SD_CLIP_VISION_PATH` | StableDiffusionBridge | CLIP vision companion — required for image-to-video variants |
+| `SD_THREADS` | StableDiffusionBridge | CPU thread count (default: `-1` = auto) |
+| `MULTIMODAL_MODEL_PATH` | MultimodalBridge | VLM model — must be set together with `MULTIMODAL_MMPROJ_PATH` |
+| `MULTIMODAL_MMPROJ_PATH` | MultimodalBridge | VLM multimodal projector |
+
+All paths are validated against `MODELS_DIR` (if set) using the same path-containment rules as API-supplied paths. A failed startup load logs an error but does **not** abort the server — the corresponding `/init` endpoint can still be called at runtime to retry.
+
+**Example — LLM + Whisper pre-loaded at startup:**
+
+```bash
+export MODELS_DIR=/srv/models
+export GENERATION_MODEL_PATH=/srv/models/llama-3.2-3b-instruct.gguf
+export WHISPER_MODEL_PATH=/srv/models/ggml-tiny-q8_0.bin
+./gradlew run
+```
+
+**Example — Wan 2.1 video model pre-loaded at startup:**
+
+```bash
+export MODELS_DIR=/srv/models
+export SD_MODEL_PATH=/srv/models/wan2.1-t2v-1.3b.gguf
+export SD_VAE_PATH=/srv/models/wan_2.1_vae.safetensors
+export SD_T5XXL_PATH=/srv/models/umt5-xxl-encoder-Q8_0.gguf
+./gradlew run
+```
+
+---
+
+## 🧩 Model Initialization
+
+Each inference bridge requires a model to be loaded before it can handle requests. There are two ways to do this:
+
+### Option A — Startup loading (recommended for production)
+
+Set the corresponding environment variable (see [Startup Model Loading](#startup-model-loading) above). The server loads the model during startup and is immediately ready. No client-side `/init` call is needed.
+
+### Option B — On-demand loading via API
+
+Call the `/init` endpoint for the bridge you want to use. The model is loaded on the first request and stays in memory for the lifetime of the server (or until the matching `shutdown` / `release` endpoint is called).
+
+| Bridge | Init endpoint | Release endpoint |
+|---|---|---|
+| LLM generation | `POST /v1/generation/init` | `POST /v1/generation/shutdown` |
+| Embeddings | `POST /v1/embeddings/init` | _(shared model with generation)_ |
+| Whisper STT | `POST /v1/whisper/init` | `POST /v1/whisper/release` |
+| Stable Diffusion | `POST /v1/stablediffusion/init` | `POST /v1/stablediffusion/release` |
+| Multimodal / VLM | `POST /v1/multimodal/init` | `POST /v1/multimodal/release` |
+
+> **Important:** all inference endpoints for a bridge return HTTP 400 if no model has been loaded yet. Always call (or startup-load) the matching `/init` endpoint first.
+
+Models persist in memory across requests until explicitly unloaded. Calling `/init` again while a model is already loaded will replace it.
 
 ---
 

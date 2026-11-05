@@ -23,6 +23,12 @@ paths:
     post:
       tags: [Embeddings]
       summary: Initialize an embedding model
+      description: |
+        Loads a GGUF embedding model into memory. Must be called before `/embeddings/embed`.
+        The model remains loaded until the server is restarted.
+
+        **Startup alternative:** set the `EMBEDDING_MODEL_PATH` environment variable to load
+        the model automatically at server start, without calling this endpoint.
       requestBody:
         required: true
         content:
@@ -43,6 +49,7 @@ paths:
     post:
       tags: [Embeddings]
       summary: Compute an embedding vector for a given input string
+      description: Requires a model loaded via `/embeddings/init` (or `EMBEDDING_MODEL_PATH` at startup).
       requestBody:
         required: true
         content:
@@ -65,6 +72,13 @@ paths:
     post:
       tags: [Generation]
       summary: Initialize a generation model
+      description: |
+        Loads a GGUF generation model into memory. Must be called before any generation,
+        streaming, session, or model-metadata endpoint. Calling it again while a model is
+        already loaded will replace the current model.
+
+        **Startup alternative:** set the `GENERATION_MODEL_PATH` environment variable to load
+        the model automatically at server start, without calling this endpoint.
       requestBody:
         required: true
         content:
@@ -85,6 +99,7 @@ paths:
     post:
       tags: [Generation]
       summary: Generate a one-shot completion for a prompt
+      description: Requires a model loaded via `/generation/init` (or `GENERATION_MODEL_PATH` at startup).
       requestBody:
         required: true
         content:
@@ -432,6 +447,12 @@ paths:
     post:
       tags: [Whisper]
       summary: Load a Whisper speech-to-text model
+      description: |
+        Loads a Whisper model into memory. Must be called before `/whisper/transcribe` or
+        `/whisper/transcribeSegments`. Use `/whisper/release` to free resources when done.
+
+        **Startup alternative:** set the `WHISPER_MODEL_PATH` environment variable to load
+        the model automatically at server start, without calling this endpoint.
       requestBody:
         required: true
         content:
@@ -452,7 +473,9 @@ paths:
     post:
       tags: [Whisper]
       summary: Transcribe a WAV file to flat text
-      description: Provide a 16 kHz mono 16-bit PCM WAV for best results.
+      description: |
+        Requires a model loaded via `/whisper/init` (or `WHISPER_MODEL_PATH` at startup).
+        Provide a 16 kHz mono 16-bit PCM WAV for best results.
       requestBody:
         required: true
         content:
@@ -473,6 +496,7 @@ paths:
     post:
       tags: [Whisper]
       summary: Transcribe a WAV file with per-segment timestamps and optional diarization
+      description: Requires a model loaded via `/whisper/init` (or `WHISPER_MODEL_PATH` at startup).
       requestBody:
         required: true
         content:
@@ -508,9 +532,16 @@ paths:
       tags: [Stable Diffusion]
       summary: Load a Stable Diffusion model
       description: |
+        Loads a Stable Diffusion model into memory. Must be called before any image or video
+        generation endpoint. Use `/stablediffusion/release` to free resources when done.
+
         For image-only models (SDXL, Flux, …) only `modelPath` and `threads` are required.
         Video models (Wan 2.1/2.2) additionally require `vaePath` and typically `t5xxlPath`.
         Pass `clipVisionPath` only for image-to-video variants.
+
+        **Startup alternative:** set `SD_MODEL_PATH` (plus `SD_VAE_PATH`, `SD_T5XXL_PATH`,
+        `SD_CLIP_VISION_PATH`, and `SD_THREADS` as needed) to load the model automatically
+        at server start, without calling this endpoint.
       requestBody:
         required: true
         content:
@@ -531,7 +562,9 @@ paths:
     post:
       tags: [Stable Diffusion]
       summary: Generate an image from a text prompt
-      description: Response contains Base64-encoded raw RGBA bytes (`width × height × 4`).
+      description: |
+        Requires a model loaded via `/stablediffusion/init` (or `SD_MODEL_PATH` at startup).
+        Response contains Base64-encoded raw RGBA bytes (`width × height × 4`).
       requestBody:
         required: true
         content:
@@ -555,6 +588,7 @@ paths:
       tags: [Stable Diffusion]
       summary: Generate an image conditioned on an existing image and a prompt
       description: |
+        Requires a model loaded via `/stablediffusion/init` (or `SD_MODEL_PATH` at startup).
         `initImageBase64` must be Base64-encoded raw RGBA bytes with dimensions `initImageW × initImageH × 4`.
       requestBody:
         required: true
@@ -644,6 +678,14 @@ paths:
     post:
       tags: [Multimodal]
       summary: Load a VLM model and its multimodal projector
+      description: |
+        Loads a vision-language model and its companion multimodal projector (`mmprojPath`)
+        into memory. Both paths are required. Must be called before `/multimodal/analyzeStream`.
+        Use `/multimodal/release` to free resources when done.
+
+        **Startup alternative:** set both `MULTIMODAL_MODEL_PATH` and `MULTIMODAL_MMPROJ_PATH`
+        environment variables to load the model automatically at server start, without calling
+        this endpoint.
       requestBody:
         required: true
         content:
@@ -665,6 +707,7 @@ paths:
       tags: [Multimodal]
       summary: Analyze an image and stream the description as Server-Sent Events (SSE)
       description: |
+        Requires a model loaded via `/multimodal/init` (or `MULTIMODAL_MODEL_PATH` + `MULTIMODAL_MMPROJ_PATH` at startup).
         `imageBase64` must be Base64-encoded JPEG, PNG, or BMP bytes.
         Uses the same SSE event format as generation streaming (`delta` / `done` / `error`).
       requestBody:
