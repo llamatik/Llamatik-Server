@@ -73,6 +73,27 @@ The server starts on:
 http://localhost:8080
 ```
 
+### Configuring models for local development
+
+Copy the template and fill in your paths — no shell exports needed:
+
+```bash
+cp local.properties.example local.properties
+# edit local.properties with your model paths
+./gradlew run
+```
+
+`local.properties` is gitignored. The build reads it and injects the values as environment variables into the `run` task. See [`local.properties.example`](./local.properties.example) for the full list of keys covering every model type and companion file.
+
+You can also override a single value on the command line without touching the file:
+
+```bash
+./gradlew run -Pgeneration.model.path=/tmp/llama-3.2-3b.gguf
+```
+
+**Priority** (highest wins): shell env var → `-P` flag / `gradle.properties` → `local.properties`.
+Production deployments that set env vars in the shell or container are never affected by `local.properties`.
+
 ---
 
 ## 🐳 Running with Docker
@@ -139,7 +160,7 @@ sudo systemctl enable docker.llamatik
 
 ### Startup Model Loading
 
-Set any of these to pre-load a model at server start. The server will not accept connections until all configured models are loaded, so inference endpoints are **immediately ready** without a client-side `/init` call.
+Set any of these to pre-load a model at server start. For local development, the easiest way is to put them in [`local.properties`](#configuring-models-for-local-development) — see below. The server will not accept connections until all configured models are loaded, so inference endpoints are **immediately ready** without a client-side `/init` call.
 
 | Variable | Bridge | Notes |
 |---|---|---|
