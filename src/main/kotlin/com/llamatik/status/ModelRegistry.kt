@@ -19,17 +19,40 @@ object ModelRegistry {
 
     // ── State types ───────────────────────────────────────────────────────────
 
+    /** State for single-file bridges with no model-level capabilities (embedding, whisper, MTP). */
     data class BridgeState(
         val loaded: Boolean,
         val model: String? = null,
     )
 
+    /**
+     * State for the generation bridge.
+     *
+     * [finetuneType] is the `general.finetune` GGUF metadata field (`"instruct"`, `"chat"`,
+     * `"base"`, or null for base models).
+     * [hasChatTemplate] is true when the model has an embedded Jinja chat template,
+     * meaning `applyChatTemplate` can be used instead of raw prompt formatting.
+     */
+    data class GenerationState(
+        val loaded: Boolean,
+        val model: String? = null,
+        val finetuneType: String? = null,
+        val hasChatTemplate: Boolean? = null,
+    )
+
+    /**
+     * State for the Stable Diffusion bridge.
+     *
+     * [supportsVideo] is true when the loaded model supports `txt2video` (e.g. Wan 2.1/2.2).
+     * It is null when no model is loaded.
+     */
     data class SdState(
         val loaded: Boolean,
         val model: String? = null,
         val vae: String? = null,
         val t5xxl: String? = null,
         val clipVision: String? = null,
+        val supportsVideo: Boolean? = null,
     )
 
     data class MultimodalState(
@@ -45,7 +68,7 @@ object ModelRegistry {
 
     // ── Current state ─────────────────────────────────────────────────────────
 
-    @Volatile var generation: BridgeState = BridgeState(false)
+    @Volatile var generation: GenerationState = GenerationState(false)
         private set
 
     @Volatile var embedding: BridgeState = BridgeState(false)
@@ -65,12 +88,21 @@ object ModelRegistry {
 
     // ── Mutations ─────────────────────────────────────────────────────────────
 
-    fun setGenerationLoaded(modelPath: String) {
-        generation = BridgeState(loaded = true, model = fileName(modelPath))
+    fun setGenerationLoaded(
+        modelPath: String,
+        finetuneType: String? = null,
+        hasChatTemplate: Boolean = false,
+    ) {
+        generation = GenerationState(
+            loaded = true,
+            model = fileName(modelPath),
+            finetuneType = finetuneType,
+            hasChatTemplate = hasChatTemplate,
+        )
     }
 
     fun clearGeneration() {
-        generation = BridgeState(false)
+        generation = GenerationState(false)
     }
 
     fun setEmbeddingLoaded(modelPath: String) {
@@ -90,6 +122,7 @@ object ModelRegistry {
         vaePath: String? = null,
         t5xxlPath: String? = null,
         clipVisionPath: String? = null,
+        supportsVideo: Boolean = false,
     ) {
         stableDiffusion = SdState(
             loaded = true,
@@ -97,6 +130,7 @@ object ModelRegistry {
             vae = vaePath?.let { fileName(it) },
             t5xxl = t5xxlPath?.let { fileName(it) },
             clipVision = clipVisionPath?.let { fileName(it) },
+            supportsVideo = supportsVideo,
         )
     }
 
@@ -128,7 +162,7 @@ object ModelRegistry {
 
     /** Resets all state to unloaded. Intended for use in tests only. */
     internal fun reset() {
-        generation = BridgeState(false)
+        generation = GenerationState(false)
         embedding = BridgeState(false)
         whisper = BridgeState(false)
         stableDiffusion = SdState(false)

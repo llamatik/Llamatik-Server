@@ -76,13 +76,21 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
         val req = call.receive<InitModelRequest>()
         // Throws IllegalArgumentException on invalid path — caught by StatusPages → 400
         val validatedPath = PathValidator.validateModelPath(req.modelPath)
-        service.initGenerateModel(validatedPath).fold(
-            onSuccess = {
-                if (it) ModelRegistry.setGenerationLoaded(validatedPath)
-                call.respond(InitModelResponse(ok = it))
-            },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
-        )
+        val result = service.initGenerateModel(validatedPath)
+        when {
+            result.isSuccess -> {
+                val ok = result.getOrThrow()
+                if (ok) {
+                    // Fetch capabilities while the model is freshly loaded.
+                    // These are suspend calls — fine here as we're inside a Ktor coroutine.
+                    val finetuneType = service.getModelFinetuneType().getOrNull()
+                    val hasChatTemplate = service.getModelChatTemplate().getOrNull() != null
+                    ModelRegistry.setGenerationLoaded(validatedPath, finetuneType, hasChatTemplate)
+                }
+                call.respond(InitModelResponse(ok = ok))
+            }
+            else -> call.respond(HttpStatusCode.BadRequest, result.exceptionOrNull()!!.sanitizedMessage())
+        }
     }
 
     // --- non-streaming ---

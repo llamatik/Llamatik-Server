@@ -57,6 +57,42 @@ class StatusRoutesTest {
     }
 
     @Test
+    fun `generation capabilities are populated after init`() = withTestApp {
+        // FakeLlamaService returns finetuneType="instruct" and chatTemplate="{{messages}}" by default
+        client.post("/v1/generation/init") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"modelPath":"/models/llama.gguf"}""")
+        }
+        val caps = client.get("/v1/models").bodyAsJson()["generation"]!!
+            .jsonObject["capabilities"]!!.jsonObject
+        assertEquals("instruct", caps["finetuneType"]?.jsonPrimitive?.content)
+        assertEquals("true",     caps["hasChatTemplate"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `generation capabilities are null when model is not loaded`() = withTestApp {
+        val gen = client.get("/v1/models").bodyAsJson()["generation"]!!.jsonObject
+        assertJsonNull(gen, "capabilities")
+    }
+
+    @Test
+    fun `generation capabilities reflect base model with no chat template`() = withTestApp(
+        llama = FakeLlamaService(
+            finetuneTypeResult = Result.success("base"),
+            chatTemplateResult = Result.success(null),
+        )
+    ) {
+        client.post("/v1/generation/init") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"modelPath":"/models/base.gguf"}""")
+        }
+        val caps = client.get("/v1/models").bodyAsJson()["generation"]!!
+            .jsonObject["capabilities"]!!.jsonObject
+        assertEquals("base",  caps["finetuneType"]?.jsonPrimitive?.content)
+        assertEquals("false", caps["hasChatTemplate"]?.jsonPrimitive?.content)
+    }
+
+    @Test
     fun `generation shows unloaded after shutdown`() = withTestApp {
         client.post("/v1/generation/init") {
             contentType(ContentType.Application.Json)
@@ -119,14 +155,34 @@ class StatusRoutesTest {
 
     @Test
     fun `stable diffusion shows loaded after init`() = withTestApp {
+        // FakeStableDiffusionService.supportsVideoGeneration() returns true by default
         client.post("/v1/stablediffusion/init") {
             contentType(ContentType.Application.Json)
             setBody("""{"modelPath":"/models/dreamshaper.gguf"}""")
         }
         val sd = client.get("/v1/models").bodyAsJson()["stableDiffusion"]!!.jsonObject
-        assertEquals("true", sd["loaded"]?.jsonPrimitive?.content)
+        assertEquals("true",             sd["loaded"]?.jsonPrimitive?.content)
         assertEquals("dreamshaper.gguf", sd["model"]?.jsonPrimitive?.content)
+        assertEquals("true",             sd["supportsVideo"]?.jsonPrimitive?.content)
         assertJsonNull(sd, "vae")
+    }
+
+    @Test
+    fun `stable diffusion supportsVideo is false for image-only models`() = withTestApp(
+        sd = FakeStableDiffusionService(supportsVideoResult = Result.success(false))
+    ) {
+        client.post("/v1/stablediffusion/init") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"modelPath":"/models/flux.gguf"}""")
+        }
+        val sd = client.get("/v1/models").bodyAsJson()["stableDiffusion"]!!.jsonObject
+        assertEquals("false", sd["supportsVideo"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `stable diffusion supportsVideo is null when not loaded`() = withTestApp {
+        val sd = client.get("/v1/models").bodyAsJson()["stableDiffusion"]!!.jsonObject
+        assertJsonNull(sd, "supportsVideo")
     }
 
     @Test

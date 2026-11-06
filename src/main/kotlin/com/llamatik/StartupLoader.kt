@@ -54,12 +54,18 @@ private suspend fun Application.loadGenerationModelOnStartup() {
     val path = System.getenv("GENERATION_MODEL_PATH")?.takeIf { it.isNotBlank() } ?: return
     log.info("Startup: loading generation model…")
     val validated = validateEnvPath(path, "GENERATION_MODEL_PATH") ?: return
-    LlamaService.initGenerateModel(validated)
-        .onSuccess {
-            if (it) ModelRegistry.setGenerationLoaded(validated)
-            log.info("Startup: generation model loaded (ok=$it)")
+    val result = LlamaService.initGenerateModel(validated)
+    if (result.isSuccess) {
+        val ok = result.getOrThrow()
+        if (ok) {
+            val finetuneType = LlamaService.getModelFinetuneType().getOrNull()
+            val hasChatTemplate = LlamaService.getModelChatTemplate().getOrNull() != null
+            ModelRegistry.setGenerationLoaded(validated, finetuneType, hasChatTemplate)
         }
-        .onFailure { log.error("Startup: generation model failed to load — ${it.message}") }
+        log.info("Startup: generation model loaded (ok=$ok)")
+    } else {
+        log.error("Startup: generation model failed to load — ${result.exceptionOrNull()?.message}")
+    }
 }
 
 private suspend fun Application.loadEmbeddingModelOnStartup() {
@@ -97,18 +103,23 @@ private suspend fun Application.loadStableDiffusionModelOnStartup() {
     val clipVisionPath = System.getenv("SD_CLIP_VISION_PATH")?.takeIf { it.isNotBlank() }
         ?.let { validateEnvPath(it, "SD_CLIP_VISION_PATH") }
     val threads = System.getenv("SD_THREADS")?.toIntOrNull() ?: -1
-    StableDiffusionService.initModel(
+    val result = StableDiffusionService.initModel(
         modelPath = validated,
         threads = threads,
         vaePath = vaePath,
         t5xxlPath = t5xxlPath,
         clipVisionPath = clipVisionPath,
     )
-        .onSuccess {
-            if (it) ModelRegistry.setStableDiffusionLoaded(validated, vaePath, t5xxlPath, clipVisionPath)
-            log.info("Startup: Stable Diffusion model loaded (ok=$it)")
+    if (result.isSuccess) {
+        val ok = result.getOrThrow()
+        if (ok) {
+            val supportsVideo = StableDiffusionService.supportsVideoGeneration().getOrElse { false }
+            ModelRegistry.setStableDiffusionLoaded(validated, vaePath, t5xxlPath, clipVisionPath, supportsVideo)
         }
-        .onFailure { log.error("Startup: Stable Diffusion model failed to load — ${it.message}") }
+        log.info("Startup: Stable Diffusion model loaded (ok=$ok)")
+    } else {
+        log.error("Startup: Stable Diffusion model failed to load — ${result.exceptionOrNull()?.message}")
+    }
 }
 
 private suspend fun Application.loadMultimodalModelOnStartup() {

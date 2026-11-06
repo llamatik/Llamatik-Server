@@ -45,6 +45,9 @@ paths:
                 generation:
                   loaded: true
                   model: "llama-3.2-3b-instruct-q8_0.gguf"
+                  capabilities:
+                    finetuneType: "instruct"
+                    hasChatTemplate: true
                 embedding:
                   loaded: false
                   model: null
@@ -52,11 +55,12 @@ paths:
                   loaded: true
                   model: "ggml-base-q8_0.bin"
                 stableDiffusion:
-                  loaded: false
-                  model: null
+                  loaded: true
+                  model: "dreamshaper-8.gguf"
                   vae: null
                   t5xxl: null
                   clipVision: null
+                  supportsVideo: false
                 multimodal:
                   loaded: false
                   model: null
@@ -1255,6 +1259,41 @@ components:
           nullable: true
           description: Filename of the loaded model, or null when no model is loaded.
 
+    GenerationCapabilitiesDto:
+      type: object
+      required: [hasChatTemplate]
+      properties:
+        finetuneType:
+          type: string
+          nullable: true
+          description: |
+            Value of the `general.finetune` GGUF metadata field.
+            `"instruct"` or `"chat"` → instruction-tuned model, use system/user prompt formatting.
+            `"base"` or null → base model, format prompts manually.
+          example: instruct
+        hasChatTemplate:
+          type: boolean
+          description: |
+            True when the model has an embedded Jinja chat template.
+            When true, `POST /v1/generation/model/applyChatTemplate` can render
+            messages into a prompt string automatically.
+
+    GenerationBridgeStatusDto:
+      type: object
+      required: [loaded]
+      properties:
+        loaded:
+          type: boolean
+        model:
+          type: string
+          nullable: true
+          description: Filename of the loaded model, or null when no model is loaded.
+        capabilities:
+          nullable: true
+          description: Non-null when a model is loaded.
+          allOf:
+            - $ref: '#/components/schemas/GenerationCapabilitiesDto'
+
     SdBridgeStatusDto:
       type: object
       required: [loaded]
@@ -1276,6 +1315,14 @@ components:
           type: string
           nullable: true
           description: Filename of the loaded CLIP vision companion, or null.
+        supportsVideo:
+          type: boolean
+          nullable: true
+          description: |
+            True when the loaded model supports `txt2video` (e.g. Wan 2.1/2.2).
+            False for standard image-only models.
+            Null when no model is loaded.
+            Saves clients a separate `GET /v1/stablediffusion/supportsVideo` call.
 
     MultimodalBridgeStatusDto:
       type: object
@@ -1296,7 +1343,7 @@ components:
       required: [generation, embedding, whisper, stableDiffusion, multimodal, mtp]
       properties:
         generation:
-          $ref: '#/components/schemas/BridgeStatusDto'
+          $ref: '#/components/schemas/GenerationBridgeStatusDto'
         embedding:
           $ref: '#/components/schemas/BridgeStatusDto'
         whisper:
