@@ -61,6 +61,44 @@ It covers the full `LlamaBridge`, `WhisperBridge`, `StableDiffusionBridge`, and 
 
 ---
 
+## 🗄 Database Setup
+
+Run the setup script once before starting the server for the first time:
+
+```bash
+./scripts/setup-db.sh
+```
+
+This creates the `llamatik` PostgreSQL database and its schema (`users`, `profiles`). The script is idempotent — safe to run again on an existing database.
+
+**Options** (all optional — defaults shown):
+
+```
+-h HOST    PostgreSQL host   (default: localhost)
+-p PORT    PostgreSQL port   (default: 5432)
+-U USER    superuser role    (default: postgres)
+-d DBNAME  database name     (default: llamatik)
+```
+
+Example for a remote or non-default setup:
+
+```bash
+./scripts/setup-db.sh -h 192.168.1.10 -U myuser -d mydb
+```
+
+After running the script, set the connection variables in `local.properties` (or as env vars):
+
+```properties
+# local.properties
+JDBC_DRIVER=org.postgresql.Driver
+JDBC_DATABASE_URL=jdbc:postgresql://localhost:5432/llamatik?user=postgres
+JWT_SECRET=your-secret
+```
+
+> **Note:** PostgreSQL must be running before executing the script. On macOS the easiest option is [Postgres.app](https://postgresapp.com); on Linux install via `apt install postgresql` / `dnf install postgresql-server`.
+
+---
+
 ## ▶️ Running Locally
 
 ```bash
