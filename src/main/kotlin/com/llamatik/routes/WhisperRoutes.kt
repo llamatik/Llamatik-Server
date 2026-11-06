@@ -8,6 +8,7 @@ import com.llamatik.api.TranscribeResponse
 import com.llamatik.api.TranscribeSegmentsRequest
 import com.llamatik.api.TranscribeSegmentsResponse
 import com.llamatik.api.WhisperInitRequest
+import com.llamatik.status.ModelRegistry
 import com.llamatik.util.PathValidator
 import com.llamatik.util.sanitizedMessage
 import com.llamatik.whisper.WhisperService
@@ -28,8 +29,12 @@ fun Route.whisperRoutes(service: WhisperServicePort = WhisperService) {
     post(WHISPER_INIT) {
         val req = call.receive<WhisperInitRequest>()
         // Throws IllegalArgumentException on invalid path — caught by StatusPages → 400
-        service.initModel(PathValidator.validateModelPath(req.modelPath)).fold(
-            onSuccess = { call.respond(InitModelResponse(ok = it)) },
+        val validatedPath = PathValidator.validateModelPath(req.modelPath)
+        service.initModel(validatedPath).fold(
+            onSuccess = {
+                if (it) ModelRegistry.setWhisperLoaded(validatedPath)
+                call.respond(InitModelResponse(ok = it))
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
@@ -59,7 +64,10 @@ fun Route.whisperRoutes(service: WhisperServicePort = WhisperService) {
 
     post(WHISPER_RELEASE) {
         service.release().fold(
-            onSuccess = { call.respond(OkResponse()) },
+            onSuccess = {
+                ModelRegistry.clearWhisper()
+                call.respond(OkResponse())
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }

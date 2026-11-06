@@ -229,3 +229,42 @@ data class AnalyzeImageRequest(
     val imageBase64: String,
     val prompt: String
 )
+
+// --- Models status (GET /v1/models) ---
+
+/** Status of a single-file bridge (generation, embedding, whisper, MTP). */
+@Serializable
+data class BridgeStatusDto(
+    val loaded: Boolean,
+    /** Filename of the loaded model, or null when no model is loaded. */
+    val model: String? = null,
+)
+
+/** Status of the Stable Diffusion bridge, which may have companion files. */
+@Serializable
+data class SdBridgeStatusDto(
+    val loaded: Boolean,
+    val model: String? = null,
+    val vae: String? = null,
+    val t5xxl: String? = null,
+    val clipVision: String? = null,
+)
+
+/** Status of the multimodal / VLM bridge. */
+@Serializable
+data class MultimodalBridgeStatusDto(
+    val loaded: Boolean,
+    val model: String? = null,
+    val mmproj: String? = null,
+)
+
+/** Full snapshot of every bridge's loaded state. */
+@Serializable
+data class ModelsStatusResponse(
+    val generation: BridgeStatusDto,
+    val embedding: BridgeStatusDto,
+    val whisper: BridgeStatusDto,
+    val stableDiffusion: SdBridgeStatusDto,
+    val multimodal: MultimodalBridgeStatusDto,
+    val mtp: BridgeStatusDto,
+)

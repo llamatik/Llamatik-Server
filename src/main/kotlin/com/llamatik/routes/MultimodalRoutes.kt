@@ -8,6 +8,7 @@ import com.llamatik.api.OkResponse
 import com.llamatik.core.platform.GenStream
 import com.llamatik.multimodal.MultimodalService
 import com.llamatik.multimodal.MultimodalServicePort
+import com.llamatik.status.ModelRegistry
 import com.llamatik.util.PathValidator
 import com.llamatik.util.Sse
 import com.llamatik.util.sanitizedMessage
@@ -38,11 +39,16 @@ fun Route.multimodalRoutes(service: MultimodalServicePort = MultimodalService) {
     post(VLM_INIT) {
         val req = call.receive<MultimodalInitRequest>()
         // Throws IllegalArgumentException on invalid paths — caught by StatusPages → 400
+        val validatedModel = PathValidator.validateModelPath(req.modelPath)
+        val validatedMmproj = PathValidator.validateModelPath(req.mmprojPath)
         service.initModel(
-            modelPath = PathValidator.validateModelPath(req.modelPath),
-            mmprojPath = PathValidator.validateModelPath(req.mmprojPath),
+            modelPath = validatedModel,
+            mmprojPath = validatedMmproj,
         ).fold(
-            onSuccess = { call.respond(InitModelResponse(ok = it)) },
+            onSuccess = {
+                if (it) ModelRegistry.setMultimodalLoaded(validatedModel, validatedMmproj)
+                call.respond(InitModelResponse(ok = it))
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
@@ -95,7 +101,10 @@ fun Route.multimodalRoutes(service: MultimodalServicePort = MultimodalService) {
 
     post(VLM_RELEASE) {
         service.release().fold(
-            onSuccess = { call.respond(OkResponse()) },
+            onSuccess = {
+                ModelRegistry.clearMultimodal()
+                call.respond(OkResponse())
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }

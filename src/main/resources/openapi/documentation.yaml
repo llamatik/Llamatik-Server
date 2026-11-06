@@ -17,6 +17,54 @@ servers:
 
 paths:
 
+  # ── Server status ──────────────────────────────────────────────────────────
+
+  /models:
+    get:
+      tags: [Status]
+      summary: List currently loaded models
+      description: |
+        Returns the loaded state of every inference bridge.
+        Only model filenames are returned — full server paths are never exposed.
+
+        Each bridge reports `loaded: true/false` and, when loaded, the filename
+        of the active model. The Stable Diffusion bridge also reports companion
+        files (VAE, T5-XXL, CLIP vision). The multimodal bridge reports the
+        projector filename alongside the model.
+
+        This endpoint follows the same `REQUIRE_INFERENCE_AUTH` setting as all
+        other inference endpoints.
+      responses:
+        '200':
+          description: Snapshot of all bridge states
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelsStatusResponse'
+              example:
+                generation:
+                  loaded: true
+                  model: "llama-3.2-3b-instruct-q8_0.gguf"
+                embedding:
+                  loaded: false
+                  model: null
+                whisper:
+                  loaded: true
+                  model: "ggml-base-q8_0.bin"
+                stableDiffusion:
+                  loaded: false
+                  model: null
+                  vae: null
+                  t5xxl: null
+                  clipVision: null
+                multimodal:
+                  loaded: false
+                  model: null
+                  mmproj: null
+                mtp:
+                  loaded: false
+                  model: null
+
   # ── Embeddings ─────────────────────────────────────────────────────────────
 
   /embeddings/init:
@@ -1193,3 +1241,69 @@ components:
           description: Base64-encoded JPEG, PNG, or BMP bytes.
         prompt:
           type: string
+
+    # ── Models status ─────────────────────────────────────────────────────────
+
+    BridgeStatusDto:
+      type: object
+      required: [loaded]
+      properties:
+        loaded:
+          type: boolean
+        model:
+          type: string
+          nullable: true
+          description: Filename of the loaded model, or null when no model is loaded.
+
+    SdBridgeStatusDto:
+      type: object
+      required: [loaded]
+      properties:
+        loaded:
+          type: boolean
+        model:
+          type: string
+          nullable: true
+        vae:
+          type: string
+          nullable: true
+          description: Filename of the loaded VAE companion, or null.
+        t5xxl:
+          type: string
+          nullable: true
+          description: Filename of the loaded T5-XXL companion, or null.
+        clipVision:
+          type: string
+          nullable: true
+          description: Filename of the loaded CLIP vision companion, or null.
+
+    MultimodalBridgeStatusDto:
+      type: object
+      required: [loaded]
+      properties:
+        loaded:
+          type: boolean
+        model:
+          type: string
+          nullable: true
+        mmproj:
+          type: string
+          nullable: true
+          description: Filename of the loaded multimodal projector, or null.
+
+    ModelsStatusResponse:
+      type: object
+      required: [generation, embedding, whisper, stableDiffusion, multimodal, mtp]
+      properties:
+        generation:
+          $ref: '#/components/schemas/BridgeStatusDto'
+        embedding:
+          $ref: '#/components/schemas/BridgeStatusDto'
+        whisper:
+          $ref: '#/components/schemas/BridgeStatusDto'
+        stableDiffusion:
+          $ref: '#/components/schemas/SdBridgeStatusDto'
+        multimodal:
+          $ref: '#/components/schemas/MultimodalBridgeStatusDto'
+        mtp:
+          $ref: '#/components/schemas/BridgeStatusDto'

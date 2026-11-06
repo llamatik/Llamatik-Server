@@ -3,6 +3,7 @@ package com.llamatik
 import com.llamatik.llama.LlamaService
 import com.llamatik.multimodal.MultimodalService
 import com.llamatik.stablediffusion.StableDiffusionService
+import com.llamatik.status.ModelRegistry
 import com.llamatik.util.PathValidator
 import com.llamatik.whisper.WhisperService
 import io.ktor.server.application.Application
@@ -54,7 +55,10 @@ private suspend fun Application.loadGenerationModelOnStartup() {
     log.info("Startup: loading generation model…")
     val validated = validateEnvPath(path, "GENERATION_MODEL_PATH") ?: return
     LlamaService.initGenerateModel(validated)
-        .onSuccess { log.info("Startup: generation model loaded (ok=$it)") }
+        .onSuccess {
+            if (it) ModelRegistry.setGenerationLoaded(validated)
+            log.info("Startup: generation model loaded (ok=$it)")
+        }
         .onFailure { log.error("Startup: generation model failed to load — ${it.message}") }
 }
 
@@ -63,7 +67,10 @@ private suspend fun Application.loadEmbeddingModelOnStartup() {
     log.info("Startup: loading embedding model…")
     val validated = validateEnvPath(path, "EMBEDDING_MODEL_PATH") ?: return
     LlamaService.initModel(validated)
-        .onSuccess { log.info("Startup: embedding model loaded (ok=$it)") }
+        .onSuccess {
+            if (it) ModelRegistry.setEmbeddingLoaded(validated)
+            log.info("Startup: embedding model loaded (ok=$it)")
+        }
         .onFailure { log.error("Startup: embedding model failed to load — ${it.message}") }
 }
 
@@ -72,7 +79,10 @@ private suspend fun Application.loadWhisperModelOnStartup() {
     log.info("Startup: loading Whisper model…")
     val validated = validateEnvPath(path, "WHISPER_MODEL_PATH") ?: return
     WhisperService.initModel(validated)
-        .onSuccess { log.info("Startup: Whisper model loaded (ok=$it)") }
+        .onSuccess {
+            if (it) ModelRegistry.setWhisperLoaded(validated)
+            log.info("Startup: Whisper model loaded (ok=$it)")
+        }
         .onFailure { log.error("Startup: Whisper model failed to load — ${it.message}") }
 }
 
@@ -94,7 +104,10 @@ private suspend fun Application.loadStableDiffusionModelOnStartup() {
         t5xxlPath = t5xxlPath,
         clipVisionPath = clipVisionPath,
     )
-        .onSuccess { log.info("Startup: Stable Diffusion model loaded (ok=$it)") }
+        .onSuccess {
+            if (it) ModelRegistry.setStableDiffusionLoaded(validated, vaePath, t5xxlPath, clipVisionPath)
+            log.info("Startup: Stable Diffusion model loaded (ok=$it)")
+        }
         .onFailure { log.error("Startup: Stable Diffusion model failed to load — ${it.message}") }
 }
 
@@ -109,7 +122,10 @@ private suspend fun Application.loadMultimodalModelOnStartup() {
     val validatedModel = validateEnvPath(modelPath, "MULTIMODAL_MODEL_PATH") ?: return
     val validatedMmproj = validateEnvPath(mmprojPath, "MULTIMODAL_MMPROJ_PATH") ?: return
     MultimodalService.initModel(modelPath = validatedModel, mmprojPath = validatedMmproj)
-        .onSuccess { log.info("Startup: multimodal model loaded (ok=$it)") }
+        .onSuccess {
+            if (it) ModelRegistry.setMultimodalLoaded(validatedModel, validatedMmproj)
+            log.info("Startup: multimodal model loaded (ok=$it)")
+        }
         .onFailure { log.error("Startup: multimodal model failed to load — ${it.message}") }
 }
 

@@ -12,6 +12,7 @@ import com.llamatik.api.Txt2VideoRequest
 import com.llamatik.api.VideoResponse
 import com.llamatik.stablediffusion.StableDiffusionService
 import com.llamatik.stablediffusion.StableDiffusionServicePort
+import com.llamatik.status.ModelRegistry
 import com.llamatik.util.PathValidator
 import com.llamatik.util.sanitizedMessage
 import io.ktor.http.HttpStatusCode
@@ -45,7 +46,10 @@ fun Route.stableDiffusionRoutes(service: StableDiffusionServicePort = StableDiff
             t5xxlPath = t5xxlPath,
             clipVisionPath = clipVisionPath,
         ).fold(
-            onSuccess = { call.respond(InitModelResponse(ok = it)) },
+            onSuccess = {
+                if (it) ModelRegistry.setStableDiffusionLoaded(modelPath, vaePath, t5xxlPath, clipVisionPath)
+                call.respond(InitModelResponse(ok = it))
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
@@ -108,7 +112,10 @@ fun Route.stableDiffusionRoutes(service: StableDiffusionServicePort = StableDiff
 
     post(SD_RELEASE) {
         service.release().fold(
-            onSuccess = { call.respond(OkResponse()) },
+            onSuccess = {
+                ModelRegistry.clearStableDiffusion()
+                call.respond(OkResponse())
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
