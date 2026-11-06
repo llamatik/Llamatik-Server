@@ -10,7 +10,9 @@ import com.llamatik.routes.embeddingRoutes
 import com.llamatik.routes.generationRoutes
 import com.llamatik.routes.multimodalRoutes
 import com.llamatik.routes.stableDiffusionRoutes
+import com.llamatik.routes.statusRoutes
 import com.llamatik.routes.whisperRoutes
+import com.llamatik.status.ModelRegistry
 import com.llamatik.stablediffusion.StableDiffusionServicePort
 import com.llamatik.whisper.WhisperServicePort
 import io.ktor.http.HttpStatusCode
@@ -30,6 +32,8 @@ fun withTestApp(
     multimodal: MultimodalServicePort = FakeMultimodalService(),
     block: suspend ApplicationTestBuilder.() -> Unit,
 ) = testApplication {
+    // Always start each test with a clean registry so state doesn't leak between tests.
+    ModelRegistry.reset()
     application {
         install(ContentNegotiation) { json() }
         // Mirror the StatusPages config from GeneralRoutingConfig so that
@@ -40,6 +44,7 @@ fun withTestApp(
             }
         }
         routing {
+            statusRoutes()
             embeddingRoutes(llama)
             generationRoutes(llama)
             whisperRoutes(whisper)

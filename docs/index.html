@@ -257,6 +257,10 @@
   <li><a href="#stablediffusionTxt2imgPost"><code><span class="http-method">post</span> /stablediffusion/txt2img</code></a></li>
   <li><a href="#stablediffusionTxt2videoPost"><code><span class="http-method">post</span> /stablediffusion/txt2video</code></a></li>
   </ul>
+  <h4><a href="#Status">Status</a></h4>
+  <ul>
+  <li><a href="#modelsGet"><code><span class="http-method">get</span> /models</code></a></li>
+  </ul>
   <h4><a href="#Whisper">Whisper</a></h4>
   <ul>
   <li><a href="#whisperInitPost"><code><span class="http-method">post</span> /whisper/init</code></a></li>
@@ -271,7 +275,7 @@
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /embeddings/embed</code></pre></div>
     <div class="method-summary">Compute an embedding vector for a given input string (<span class="nickname">embeddingsEmbedPost</span>)</div>
-    <div class="method-notes"></div>
+    <div class="method-notes">Requires a model loaded via <code>/embeddings/init</code> (or <code>EMBEDDING_MODEL_PATH</code> at startup).</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -325,7 +329,11 @@
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /embeddings/init</code></pre></div>
     <div class="method-summary">Initialize an embedding model (<span class="nickname">embeddingsInitPost</span>)</div>
-    <div class="method-notes"></div>
+    <div class="method-notes"><p>Loads a GGUF embedding model into memory. Must be called before <code>/embeddings/embed</code>.
+The model remains loaded until the server is restarted.</p>
+<p><strong>Startup alternative:</strong> set the <code>EMBEDDING_MODEL_PATH</code> environment variable to load
+the model automatically at server start, without calling this endpoint.</p>
+</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -617,7 +625,7 @@
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/generate</code></pre></div>
     <div class="method-summary">Generate a one-shot completion for a prompt (<span class="nickname">generationGeneratePost</span>)</div>
-    <div class="method-notes"></div>
+    <div class="method-notes">Requires a model loaded via <code>/generation/init</code> (or <code>GENERATION_MODEL_PATH</code> at startup).</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -719,7 +727,12 @@
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /generation/init</code></pre></div>
     <div class="method-summary">Initialize a generation model (<span class="nickname">generationInitPost</span>)</div>
-    <div class="method-notes"></div>
+    <div class="method-notes"><p>Loads a GGUF generation model into memory. Must be called before any generation,
+streaming, session, or model-metadata endpoint. Calling it again while a model is
+already loaded will replace the current model.</p>
+<p><strong>Startup alternative:</strong> set the <code>GENERATION_MODEL_PATH</code> environment variable to load
+the model automatically at server start, without calling this endpoint.</p>
+</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -1411,7 +1424,8 @@
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /multimodal/analyzeStream</code></pre></div>
     <div class="method-summary">Analyze an image and stream the description as Server-Sent Events (SSE) (<span class="nickname">multimodalAnalyzeStreamPost</span>)</div>
-    <div class="method-notes"><code>imageBase64</code> must be Base64-encoded JPEG, PNG, or BMP bytes.
+    <div class="method-notes">Requires a model loaded via <code>/multimodal/init</code> (or <code>MULTIMODAL_MODEL_PATH</code> + <code>MULTIMODAL_MMPROJ_PATH</code> at startup).
+<code>imageBase64</code> must be Base64-encoded JPEG, PNG, or BMP bytes.
 Uses the same SSE event format as generation streaming (<code>delta</code> / <code>done</code> / <code>error</code>).</div>
 
 
@@ -1496,7 +1510,13 @@ Uses the same SSE event format as generation streaming (<code>delta</code> / <co
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /multimodal/init</code></pre></div>
     <div class="method-summary">Load a VLM model and its multimodal projector (<span class="nickname">multimodalInitPost</span>)</div>
-    <div class="method-notes"></div>
+    <div class="method-notes"><p>Loads a vision-language model and its companion multimodal projector (<code>mmprojPath</code>)
+into memory. Both paths are required. Must be called before <code>/multimodal/analyzeStream</code>.
+Use <code>/multimodal/release</code> to free resources when done.</p>
+<p><strong>Startup alternative:</strong> set both <code>MULTIMODAL_MODEL_PATH</code> and <code>MULTIMODAL_MMPROJ_PATH</code>
+environment variables to load the model automatically at server start, without calling
+this endpoint.</p>
+</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -1591,7 +1611,8 @@ Uses the same SSE event format as generation streaming (<code>delta</code> / <co
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /stablediffusion/img2img</code></pre></div>
     <div class="method-summary">Generate an image conditioned on an existing image and a prompt (<span class="nickname">stablediffusionImg2imgPost</span>)</div>
-    <div class="method-notes"><code>initImageBase64</code> must be Base64-encoded raw RGBA bytes with dimensions <code>initImageW × initImageH × 4</code>.</div>
+    <div class="method-notes">Requires a model loaded via <code>/stablediffusion/init</code> (or <code>SD_MODEL_PATH</code> at startup).
+<code>initImageBase64</code> must be Base64-encoded raw RGBA bytes with dimensions <code>initImageW × initImageH × 4</code>.</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -1648,9 +1669,15 @@ Uses the same SSE event format as generation streaming (<code>delta</code> / <co
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /stablediffusion/init</code></pre></div>
     <div class="method-summary">Load a Stable Diffusion model (<span class="nickname">stablediffusionInitPost</span>)</div>
-    <div class="method-notes">For image-only models (SDXL, Flux, …) only <code>modelPath</code> and <code>threads</code> are required.
+    <div class="method-notes"><p>Loads a Stable Diffusion model into memory. Must be called before any image or video
+generation endpoint. Use <code>/stablediffusion/release</code> to free resources when done.</p>
+<p>For image-only models (SDXL, Flux, …) only <code>modelPath</code> and <code>threads</code> are required.
 Video models (Wan 2.1/2.2) additionally require <code>vaePath</code> and typically <code>t5xxlPath</code>.
-Pass <code>clipVisionPath</code> only for image-to-video variants.</div>
+Pass <code>clipVisionPath</code> only for image-to-video variants.</p>
+<p><strong>Startup alternative:</strong> set <code>SD_MODEL_PATH</code> (plus <code>SD_VAE_PATH</code>, <code>SD_T5XXL_PATH</code>,
+<code>SD_CLIP_VISION_PATH</code>, and <code>SD_THREADS</code> as needed) to load the model automatically
+at server start, without calling this endpoint.</p>
+</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -1788,7 +1815,8 @@ Pass <code>clipVisionPath</code> only for image-to-video variants.</div>
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /stablediffusion/txt2img</code></pre></div>
     <div class="method-summary">Generate an image from a text prompt (<span class="nickname">stablediffusionTxt2imgPost</span>)</div>
-    <div class="method-notes">Response contains Base64-encoded raw RGBA bytes (<code>width × height × 4</code>).</div>
+    <div class="method-notes">Requires a model loaded via <code>/stablediffusion/init</code> (or <code>SD_MODEL_PATH</code> at startup).
+Response contains Base64-encoded raw RGBA bytes (<code>width × height × 4</code>).</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -1906,13 +1934,84 @@ The response contains the full packed frame buffer Base64-encoded.</p>
         <a href="#"></a>
   </div> <!-- method -->
   <hr/>
+  <h1><a name="Status">Status</a></h1>
+  <div class="method"><a name="modelsGet"></a>
+    <div class="method-path">
+    <a class="up" href="#__Methods">Up</a>
+    <pre class="get"><code class="huge"><span class="http-method">get</span> /models</code></pre></div>
+    <div class="method-summary">List currently loaded models (<span class="nickname">modelsGet</span>)</div>
+    <div class="method-notes"><p>Returns the loaded state of every inference bridge.
+Only model filenames are returned — full server paths are never exposed.</p>
+<p>Each bridge reports <code>loaded: true/false</code> and, when loaded, the filename
+of the active model. The Stable Diffusion bridge also reports companion
+files (VAE, T5-XXL, CLIP vision). The multimodal bridge reports the
+projector filename alongside the model.</p>
+<p>This endpoint follows the same <code>REQUIRE_INFERENCE_AUTH</code> setting as all
+other inference endpoints.</p>
+</div>
+
+
+
+
+
+
+
+    <h3 class="field-label">Return type</h3>
+    <div class="return-type">
+      <a href="#ModelsStatusResponse">ModelsStatusResponse</a>
+      
+    </div>
+
+    <!--Todo: process Response Object and its headers, schema, examples -->
+
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{
+  "generation" : {
+    "loaded" : "",
+    "model" : ""
+  },
+  "multimodal" : {
+    "loaded" : "",
+    "mmproj" : "",
+    "model" : ""
+  },
+  "stableDiffusion" : {
+    "loaded" : "",
+    "clipVision" : "",
+    "t5xxl" : "",
+    "model" : "",
+    "vae" : ""
+  }
+}</code></pre>
+
+    <h3 class="field-label">Produces</h3>
+    This API call produces the following media types according to the <span class="header">Accept</span> request header;
+    the media type will be conveyed by the <span class="header">Content-Type</span> response header.
+    <ul>
+      <li><code>application/json</code></li>
+    </ul>
+
+    <h3 class="field-label">Responses</h3>
+    <h4 class="field-label">200</h4>
+    Snapshot of all bridge states
+        <a href="#ModelsStatusResponse">ModelsStatusResponse</a>
+    <h3 class="field-label">Example data</h3>
+    <div class="example-data-content-type">Content-Type: application/json</div>
+    <pre class="example"><code>{&quot;generation&quot;:{&quot;loaded&quot;:true,&quot;model&quot;:&quot;llama-3.2-3b-instruct-q8_0.gguf&quot;},&quot;embedding&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null},&quot;whisper&quot;:{&quot;loaded&quot;:true,&quot;model&quot;:&quot;ggml-base-q8_0.bin&quot;},&quot;stableDiffusion&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null,&quot;vae&quot;:null,&quot;t5xxl&quot;:null,&quot;clipVision&quot;:null},&quot;multimodal&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null,&quot;mmproj&quot;:null},&quot;mtp&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null}}</code></pre>
+  </div> <!-- method -->
+  <hr/>
   <h1><a name="Whisper">Whisper</a></h1>
   <div class="method"><a name="whisperInitPost"></a>
     <div class="method-path">
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /whisper/init</code></pre></div>
     <div class="method-summary">Load a Whisper speech-to-text model (<span class="nickname">whisperInitPost</span>)</div>
-    <div class="method-notes"></div>
+    <div class="method-notes"><p>Loads a Whisper model into memory. Must be called before <code>/whisper/transcribe</code> or
+<code>/whisper/transcribeSegments</code>. Use <code>/whisper/release</code> to free resources when done.</p>
+<p><strong>Startup alternative:</strong> set the <code>WHISPER_MODEL_PATH</code> environment variable to load
+the model automatically at server start, without calling this endpoint.</p>
+</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -2006,7 +2105,8 @@ The response contains the full packed frame buffer Base64-encoded.</p>
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /whisper/transcribe</code></pre></div>
     <div class="method-summary">Transcribe a WAV file to flat text (<span class="nickname">whisperTranscribePost</span>)</div>
-    <div class="method-notes">Provide a 16 kHz mono 16-bit PCM WAV for best results.</div>
+    <div class="method-notes">Requires a model loaded via <code>/whisper/init</code> (or <code>WHISPER_MODEL_PATH</code> at startup).
+Provide a 16 kHz mono 16-bit PCM WAV for best results.</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -2060,7 +2160,7 @@ The response contains the full packed frame buffer Base64-encoded.</p>
     <a class="up" href="#__Methods">Up</a>
     <pre class="post"><code class="huge"><span class="http-method">post</span> /whisper/transcribeSegments</code></pre></div>
     <div class="method-summary">Transcribe a WAV file with per-segment timestamps and optional diarization (<span class="nickname">whisperTranscribeSegmentsPost</span>)</div>
-    <div class="method-notes"></div>
+    <div class="method-notes">Requires a model loaded via <code>/whisper/init</code> (or <code>WHISPER_MODEL_PATH</code> at startup).</div>
 
 
     <h3 class="field-label">Consumes</h3>
@@ -2118,6 +2218,7 @@ The response contains the full packed frame buffer Base64-encoded.</p>
     <li><a href="#AnalyzeImageRequest"><code>AnalyzeImageRequest</code></a></li>
     <li><a href="#ApplyChatTemplateRequest"><code>ApplyChatTemplateRequest</code></a></li>
     <li><a href="#ApplyChatTemplateResponse"><code>ApplyChatTemplateResponse</code></a></li>
+    <li><a href="#BridgeStatusDto"><code>BridgeStatusDto</code></a></li>
     <li><a href="#ChatMessage"><code>ChatMessage</code></a></li>
     <li><a href="#EmbedRequest"><code>EmbedRequest</code></a></li>
     <li><a href="#EmbedResponse"><code>EmbedResponse</code></a></li>
@@ -2134,8 +2235,11 @@ The response contains the full packed frame buffer Base64-encoded.</p>
     <li><a href="#InitMtpRequest"><code>InitMtpRequest</code></a></li>
     <li><a href="#ModelChatTemplateResponse"><code>ModelChatTemplateResponse</code></a></li>
     <li><a href="#ModelFinetuneTypeResponse"><code>ModelFinetuneTypeResponse</code></a></li>
+    <li><a href="#ModelsStatusResponse"><code>ModelsStatusResponse</code></a></li>
+    <li><a href="#MultimodalBridgeStatusDto"><code>MultimodalBridgeStatusDto</code></a></li>
     <li><a href="#MultimodalInitRequest"><code>MultimodalInitRequest</code></a></li>
     <li><a href="#OkResponse"><code>OkResponse</code></a></li>
+    <li><a href="#SdBridgeStatusDto"><code>SdBridgeStatusDto</code></a></li>
     <li><a href="#SessionLoadRequest"><code>SessionLoadRequest</code></a></li>
     <li><a href="#SessionResult"><code>SessionResult</code></a></li>
     <li><a href="#SessionSaveRequest"><code>SessionSaveRequest</code></a></li>
@@ -2173,6 +2277,14 @@ The response contains the full packed frame buffer Base64-encoded.</p>
     
     <div class="field-items">
       <div class="param">prompt (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="BridgeStatusDto"><code>BridgeStatusDto</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">loaded </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">model (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Filename of the loaded model, or null when no model is loaded. </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
@@ -2307,6 +2419,27 @@ The response contains the full packed frame buffer Base64-encoded.</p>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="ModelsStatusResponse"><code>ModelsStatusResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">generation </div><div class="param-desc"><span class="param-type"><a href="#BridgeStatusDto">BridgeStatusDto</a></span>  </div>
+<div class="param">embedding </div><div class="param-desc"><span class="param-type"><a href="#BridgeStatusDto">BridgeStatusDto</a></span>  </div>
+<div class="param">whisper </div><div class="param-desc"><span class="param-type"><a href="#BridgeStatusDto">BridgeStatusDto</a></span>  </div>
+<div class="param">stableDiffusion </div><div class="param-desc"><span class="param-type"><a href="#SdBridgeStatusDto">SdBridgeStatusDto</a></span>  </div>
+<div class="param">multimodal </div><div class="param-desc"><span class="param-type"><a href="#MultimodalBridgeStatusDto">MultimodalBridgeStatusDto</a></span>  </div>
+<div class="param">mtp </div><div class="param-desc"><span class="param-type"><a href="#BridgeStatusDto">BridgeStatusDto</a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="MultimodalBridgeStatusDto"><code>MultimodalBridgeStatusDto</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">loaded </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">model (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">mmproj (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Filename of the loaded multimodal projector, or null. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="MultimodalInitRequest"><code>MultimodalInitRequest</code></a> <a class="up" href="#__Models">Up</a></h3>
     
     <div class="field-items">
@@ -2319,6 +2452,17 @@ The response contains the full packed frame buffer Base64-encoded.</p>
     
     <div class="field-items">
       <div class="param">ok </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="SdBridgeStatusDto"><code>SdBridgeStatusDto</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">loaded </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">model (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">vae (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Filename of the loaded VAE companion, or null. </div>
+<div class="param">t5xxl (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Filename of the loaded T5-XXL companion, or null. </div>
+<div class="param">clipVision (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Filename of the loaded CLIP vision companion, or null. </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">

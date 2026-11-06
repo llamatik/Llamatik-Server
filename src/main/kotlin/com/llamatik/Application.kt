@@ -18,6 +18,7 @@ fun main() {
         configureTemplating()
         configureSerialization()
         configureAdministration()
+        configureStartupLoading()
     }.start(wait = true)
 }
 

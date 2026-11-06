@@ -22,6 +22,7 @@ import com.llamatik.api.UpdateParamsRequest
 import com.llamatik.core.platform.GenStream
 import com.llamatik.llama.LlamaService
 import com.llamatik.llama.LlamaServicePort
+import com.llamatik.status.ModelRegistry
 import com.llamatik.util.PathValidator
 import com.llamatik.util.Sse
 import com.llamatik.util.sanitizedMessage
@@ -74,10 +75,22 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
     post(GENERATION_INIT) {
         val req = call.receive<InitModelRequest>()
         // Throws IllegalArgumentException on invalid path — caught by StatusPages → 400
-        service.initGenerateModel(PathValidator.validateModelPath(req.modelPath)).fold(
-            onSuccess = { call.respond(InitModelResponse(ok = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
-        )
+        val validatedPath = PathValidator.validateModelPath(req.modelPath)
+        val result = service.initGenerateModel(validatedPath)
+        when {
+            result.isSuccess -> {
+                val ok = result.getOrThrow()
+                if (ok) {
+                    // Fetch capabilities while the model is freshly loaded.
+                    // These are suspend calls — fine here as we're inside a Ktor coroutine.
+                    val finetuneType = service.getModelFinetuneType().getOrNull()
+                    val hasChatTemplate = service.getModelChatTemplate().getOrNull() != null
+                    ModelRegistry.setGenerationLoaded(validatedPath, finetuneType, hasChatTemplate)
+                }
+                call.respond(InitModelResponse(ok = ok))
+            }
+            else -> call.respond(HttpStatusCode.BadRequest, result.exceptionOrNull()!!.sanitizedMessage())
+        }
     }
 
     // --- non-streaming ---
@@ -143,7 +156,10 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
 
     post(GENERATION_SHUTDOWN) {
         service.shutdown().fold(
-            onSuccess = { call.respond(OkResponse()) },
+            onSuccess = {
+                ModelRegistry.clearGeneration()
+                call.respond(OkResponse())
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
@@ -200,15 +216,22 @@ fun Route.generationRoutes(service: LlamaServicePort = LlamaService) {
     // --- MTP (speculative decoding) ---
     post(GENERATION_MTP_INIT) {
         val req = call.receive<InitMtpRequest>()
-        service.initMtp(PathValidator.validateModelPath(req.modelPath), req.draftLen).fold(
-            onSuccess = { call.respond(InitModelResponse(ok = it)) },
+        val validatedPath = PathValidator.validateModelPath(req.modelPath)
+        service.initMtp(validatedPath, req.draftLen).fold(
+            onSuccess = {
+                if (it) ModelRegistry.setMtpLoaded(validatedPath)
+                call.respond(InitModelResponse(ok = it))
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }
 
     post(GENERATION_MTP_SHUTDOWN) {
         service.shutdownMtp().fold(
-            onSuccess = { call.respond(OkResponse()) },
+            onSuccess = {
+                ModelRegistry.clearMtp()
+                call.respond(OkResponse())
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }

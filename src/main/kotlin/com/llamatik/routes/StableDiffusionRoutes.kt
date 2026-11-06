@@ -12,6 +12,7 @@ import com.llamatik.api.Txt2VideoRequest
 import com.llamatik.api.VideoResponse
 import com.llamatik.stablediffusion.StableDiffusionService
 import com.llamatik.stablediffusion.StableDiffusionServicePort
+import com.llamatik.status.ModelRegistry
 import com.llamatik.util.PathValidator
 import com.llamatik.util.sanitizedMessage
 import io.ktor.http.HttpStatusCode
@@ -38,16 +39,24 @@ fun Route.stableDiffusionRoutes(service: StableDiffusionServicePort = StableDiff
         val vaePath = req.vaePath?.let { PathValidator.validateModelPath(it) }
         val t5xxlPath = req.t5xxlPath?.let { PathValidator.validateModelPath(it) }
         val clipVisionPath = req.clipVisionPath?.let { PathValidator.validateModelPath(it) }
-        service.initModel(
+        val result = service.initModel(
             modelPath = modelPath,
             threads = req.threads,
             vaePath = vaePath,
             t5xxlPath = t5xxlPath,
             clipVisionPath = clipVisionPath,
-        ).fold(
-            onSuccess = { call.respond(InitModelResponse(ok = it)) },
-            onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
+        when {
+            result.isSuccess -> {
+                val ok = result.getOrThrow()
+                if (ok) {
+                    val supportsVideo = service.supportsVideoGeneration().getOrElse { false }
+                    ModelRegistry.setStableDiffusionLoaded(modelPath, vaePath, t5xxlPath, clipVisionPath, supportsVideo)
+                }
+                call.respond(InitModelResponse(ok = ok))
+            }
+            else -> call.respond(HttpStatusCode.BadRequest, result.exceptionOrNull()!!.sanitizedMessage())
+        }
     }
 
     post(SD_TXT2IMG) {
@@ -108,7 +117,10 @@ fun Route.stableDiffusionRoutes(service: StableDiffusionServicePort = StableDiff
 
     post(SD_RELEASE) {
         service.release().fold(
-            onSuccess = { call.respond(OkResponse()) },
+            onSuccess = {
+                ModelRegistry.clearStableDiffusion()
+                call.respond(OkResponse())
+            },
             onFailure = { call.respond(HttpStatusCode.BadRequest, it.sanitizedMessage()) }
         )
     }

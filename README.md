@@ -61,6 +61,44 @@ It covers the full `LlamaBridge`, `WhisperBridge`, `StableDiffusionBridge`, and 
 
 ---
 
+## 🗄 Database Setup
+
+Run the setup script once before starting the server for the first time:
+
+```bash
+./scripts/setup-db.sh
+```
+
+This creates the `llamatik` PostgreSQL database and its schema (`users`, `profiles`). The script is idempotent — safe to run again on an existing database.
+
+**Options** (all optional — defaults shown):
+
+```
+-h HOST    PostgreSQL host   (default: localhost)
+-p PORT    PostgreSQL port   (default: 5432)
+-U USER    superuser role    (default: postgres)
+-d DBNAME  database name     (default: llamatik)
+```
+
+Example for a remote or non-default setup:
+
+```bash
+./scripts/setup-db.sh -h 192.168.1.10 -U myuser -d mydb
+```
+
+After running the script, set the connection variables in `local.properties` (or as env vars):
+
+```properties
+# local.properties
+JDBC_DRIVER=org.postgresql.Driver
+JDBC_DATABASE_URL=jdbc:postgresql://localhost:5432/llamatik?user=postgres
+JWT_SECRET=your-secret
+```
+
+> **Note:** PostgreSQL must be running before executing the script. On macOS the easiest option is [Postgres.app](https://postgresapp.com); on Linux install via `apt install postgresql` / `dnf install postgresql-server`.
+
+---
+
 ## ▶️ Running Locally
 
 ```bash
@@ -72,6 +110,27 @@ The server starts on:
 ```
 http://localhost:8080
 ```
+
+### Configuring models for local development
+
+Copy the template and fill in your paths — no shell exports needed:
+
+```bash
+cp local.properties.example local.properties
+# edit local.properties with your model paths
+./gradlew run
+```
+
+`local.properties` is gitignored. The build reads it and injects the values as environment variables into the `run` task. See [`local.properties.example`](./local.properties.example) for the full list of keys covering every model type and companion file.
+
+You can also override a single value on the command line without touching the file:
+
+```bash
+./gradlew run -Pgeneration.model.path=/tmp/llama-3.2-3b.gguf
+```
+
+**Priority** (highest wins): shell env var → `-P` flag / `gradle.properties` → `local.properties`.
+Production deployments that set env vars in the shell or container are never affected by `local.properties`.
 
 ---
 
@@ -122,6 +181,8 @@ sudo systemctl enable docker.llamatik
 
 ## 🌍 Environment Variables
 
+### Server & Auth
+
 | Variable | Required | Description |
 |---|---|---|
 | `JWT_SECRET` | ✅ | HMAC-512 secret for JWT signing |
@@ -134,6 +195,70 @@ sudo systemctl enable docker.llamatik
 | `REQUIRE_INFERENCE_AUTH` | | Set to `"true"` to require a valid JWT Bearer token on all inference endpoints. **Always set this for internet-facing deployments.** LAN-only deployments may leave it unset. |
 | `MODELS_DIR` | | Absolute path to the directory that holds model files, WAV files, and companion files (e.g. `/srv/models`). When set, all caller-supplied file paths are validated to resolve inside this directory, preventing path traversal. Strongly recommended for all deployments. |
 | `SESSIONS_DIR` | | Absolute path for KV-session save/load files. Defaults to `$MODELS_DIR/sessions` when `MODELS_DIR` is set. When neither is configured, session paths are unconstrained. |
+
+### Startup Model Loading
+
+Set any of these to pre-load a model at server start. For local development, the easiest way is to put them in [`local.properties`](#configuring-models-for-local-development) — see below. The server will not accept connections until all configured models are loaded, so inference endpoints are **immediately ready** without a client-side `/init` call.
+
+| Variable | Bridge | Notes |
+|---|---|---|
+| `GENERATION_MODEL_PATH` | LlamaBridge | LLM generation model (`.gguf`) |
+| `EMBEDDING_MODEL_PATH` | LlamaBridge | Embedding / RAG model (`.gguf`) |
+| `WHISPER_MODEL_PATH` | WhisperBridge | Whisper STT model (`.bin`) |
+| `SD_MODEL_PATH` | StableDiffusionBridge | Image or video model (`.gguf` / `.safetensors`) |
+| `SD_VAE_PATH` | StableDiffusionBridge | VAE companion — required for Wan 2.1/2.2 video models |
+| `SD_T5XXL_PATH` | StableDiffusionBridge | T5-XXL companion — required for some video models |
+| `SD_CLIP_VISION_PATH` | StableDiffusionBridge | CLIP vision companion — required for image-to-video variants |
+| `SD_THREADS` | StableDiffusionBridge | CPU thread count (default: `-1` = auto) |
+| `MULTIMODAL_MODEL_PATH` | MultimodalBridge | VLM model — must be set together with `MULTIMODAL_MMPROJ_PATH` |
+| `MULTIMODAL_MMPROJ_PATH` | MultimodalBridge | VLM multimodal projector |
+
+All paths are validated against `MODELS_DIR` (if set) using the same path-containment rules as API-supplied paths. A failed startup load logs an error but does **not** abort the server — the corresponding `/init` endpoint can still be called at runtime to retry.
+
+**Example — LLM + Whisper pre-loaded at startup:**
+
+```bash
+export MODELS_DIR=/srv/models
+export GENERATION_MODEL_PATH=/srv/models/llama-3.2-3b-instruct.gguf
+export WHISPER_MODEL_PATH=/srv/models/ggml-tiny-q8_0.bin
+./gradlew run
+```
+
+**Example — Wan 2.1 video model pre-loaded at startup:**
+
+```bash
+export MODELS_DIR=/srv/models
+export SD_MODEL_PATH=/srv/models/wan2.1-t2v-1.3b.gguf
+export SD_VAE_PATH=/srv/models/wan_2.1_vae.safetensors
+export SD_T5XXL_PATH=/srv/models/umt5-xxl-encoder-Q8_0.gguf
+./gradlew run
+```
+
+---
+
+## 🧩 Model Initialization
+
+Each inference bridge requires a model to be loaded before it can handle requests. There are two ways to do this:
+
+### Option A — Startup loading (recommended for production)
+
+Set the corresponding environment variable (see [Startup Model Loading](#startup-model-loading) above). The server loads the model during startup and is immediately ready. No client-side `/init` call is needed.
+
+### Option B — On-demand loading via API
+
+Call the `/init` endpoint for the bridge you want to use. The model is loaded on the first request and stays in memory for the lifetime of the server (or until the matching `shutdown` / `release` endpoint is called).
+
+| Bridge | Init endpoint | Release endpoint |
+|---|---|---|
+| LLM generation | `POST /v1/generation/init` | `POST /v1/generation/shutdown` |
+| Embeddings | `POST /v1/embeddings/init` | _(shared model with generation)_ |
+| Whisper STT | `POST /v1/whisper/init` | `POST /v1/whisper/release` |
+| Stable Diffusion | `POST /v1/stablediffusion/init` | `POST /v1/stablediffusion/release` |
+| Multimodal / VLM | `POST /v1/multimodal/init` | `POST /v1/multimodal/release` |
+
+> **Important:** all inference endpoints for a bridge return HTTP 400 if no model has been loaded yet. Always call (or startup-load) the matching `/init` endpoint first.
+
+Models persist in memory across requests until explicitly unloaded. Calling `/init` again while a model is already loaded will replace it.
 
 ---
 
