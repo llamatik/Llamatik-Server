@@ -1969,6 +1969,7 @@ other inference endpoints.</p>
     <pre class="example"><code>{
   "generation" : {
     "loaded" : "",
+    "capabilities" : "",
     "model" : ""
   },
   "multimodal" : {
@@ -1976,12 +1977,17 @@ other inference endpoints.</p>
     "mmproj" : "",
     "model" : ""
   },
+  "embedding" : {
+    "loaded" : "",
+    "model" : ""
+  },
   "stableDiffusion" : {
     "loaded" : "",
     "clipVision" : "",
     "t5xxl" : "",
     "model" : "",
-    "vae" : ""
+    "vae" : "",
+    "supportsVideo" : ""
   }
 }</code></pre>
 
@@ -1998,7 +2004,7 @@ other inference endpoints.</p>
         <a href="#ModelsStatusResponse">ModelsStatusResponse</a>
     <h3 class="field-label">Example data</h3>
     <div class="example-data-content-type">Content-Type: application/json</div>
-    <pre class="example"><code>{&quot;generation&quot;:{&quot;loaded&quot;:true,&quot;model&quot;:&quot;llama-3.2-3b-instruct-q8_0.gguf&quot;},&quot;embedding&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null},&quot;whisper&quot;:{&quot;loaded&quot;:true,&quot;model&quot;:&quot;ggml-base-q8_0.bin&quot;},&quot;stableDiffusion&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null,&quot;vae&quot;:null,&quot;t5xxl&quot;:null,&quot;clipVision&quot;:null},&quot;multimodal&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null,&quot;mmproj&quot;:null},&quot;mtp&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null}}</code></pre>
+    <pre class="example"><code>{&quot;generation&quot;:{&quot;loaded&quot;:true,&quot;model&quot;:&quot;llama-3.2-3b-instruct-q8_0.gguf&quot;,&quot;capabilities&quot;:{&quot;finetuneType&quot;:&quot;instruct&quot;,&quot;hasChatTemplate&quot;:true}},&quot;embedding&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null},&quot;whisper&quot;:{&quot;loaded&quot;:true,&quot;model&quot;:&quot;ggml-base-q8_0.bin&quot;},&quot;stableDiffusion&quot;:{&quot;loaded&quot;:true,&quot;model&quot;:&quot;dreamshaper-8.gguf&quot;,&quot;vae&quot;:null,&quot;t5xxl&quot;:null,&quot;clipVision&quot;:null,&quot;supportsVideo&quot;:false},&quot;multimodal&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null,&quot;mmproj&quot;:null},&quot;mtp&quot;:{&quot;loaded&quot;:false,&quot;model&quot;:null}}</code></pre>
   </div> <!-- method -->
   <hr/>
   <h1><a name="Whisper">Whisper</a></h1>
@@ -2228,6 +2234,8 @@ Provide a 16 kHz mono 16-bit PCM WAV for best results.</div>
     <li><a href="#GenerateRequest"><code>GenerateRequest</code></a></li>
     <li><a href="#GenerateResponse"><code>GenerateResponse</code></a></li>
     <li><a href="#GenerateWithContextRequest"><code>GenerateWithContextRequest</code></a></li>
+    <li><a href="#GenerationBridgeStatusDto"><code>GenerationBridgeStatusDto</code></a></li>
+    <li><a href="#GenerationCapabilitiesDto"><code>GenerationCapabilitiesDto</code></a></li>
     <li><a href="#ImageResponse"><code>ImageResponse</code></a></li>
     <li><a href="#Img2ImgRequest"><code>Img2ImgRequest</code></a></li>
     <li><a href="#InitModelRequest"><code>InitModelRequest</code></a></li>
@@ -2359,6 +2367,28 @@ Provide a 16 kHz mono 16-bit PCM WAV for best results.</div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
+    <h3><a name="GenerationBridgeStatusDto"><code>GenerationBridgeStatusDto</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">loaded </div><div class="param-desc"><span class="param-type"><a href="#"></a></span>  </div>
+<div class="param">model (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Filename of the loaded model, or null when no model is loaded. </div>
+<div class="param">capabilities (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Non-null when a model is loaded. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
+    <h3><a name="GenerationCapabilitiesDto"><code>GenerationCapabilitiesDto</code></a> <a class="up" href="#__Models">Up</a></h3>
+    
+    <div class="field-items">
+      <div class="param">finetuneType (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Value of the &lt;code&gt;general.finetune&lt;/code&gt; GGUF metadata field.
+&lt;code&gt;&amp;quot;instruct&amp;quot;&lt;/code&gt; or &lt;code&gt;&amp;quot;chat&amp;quot;&lt;/code&gt; → instruction-tuned model, use system/user prompt formatting.
+&lt;code&gt;&amp;quot;base&amp;quot;&lt;/code&gt; or null → base model, format prompts manually. </div>
+          <div class="param-desc"><span class="param-type">example: instruct</span></div>
+<div class="param">hasChatTemplate </div><div class="param-desc"><span class="param-type"><a href="#"></a></span> True when the model has an embedded Jinja chat template.
+When true, &lt;code&gt;POST /v1/generation/model/applyChatTemplate&lt;/code&gt; can render
+messages into a prompt string automatically. </div>
+    </div>  <!-- field-items -->
+  </div>
+  <div class="model">
     <h3><a name="ImageResponse"><code>ImageResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
     
     <div class="field-items">
@@ -2422,7 +2452,7 @@ Provide a 16 kHz mono 16-bit PCM WAV for best results.</div>
     <h3><a name="ModelsStatusResponse"><code>ModelsStatusResponse</code></a> <a class="up" href="#__Models">Up</a></h3>
     
     <div class="field-items">
-      <div class="param">generation </div><div class="param-desc"><span class="param-type"><a href="#BridgeStatusDto">BridgeStatusDto</a></span>  </div>
+      <div class="param">generation </div><div class="param-desc"><span class="param-type"><a href="#GenerationBridgeStatusDto">GenerationBridgeStatusDto</a></span>  </div>
 <div class="param">embedding </div><div class="param-desc"><span class="param-type"><a href="#BridgeStatusDto">BridgeStatusDto</a></span>  </div>
 <div class="param">whisper </div><div class="param-desc"><span class="param-type"><a href="#BridgeStatusDto">BridgeStatusDto</a></span>  </div>
 <div class="param">stableDiffusion </div><div class="param-desc"><span class="param-type"><a href="#SdBridgeStatusDto">SdBridgeStatusDto</a></span>  </div>
@@ -2463,6 +2493,10 @@ Provide a 16 kHz mono 16-bit PCM WAV for best results.</div>
 <div class="param">vae (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Filename of the loaded VAE companion, or null. </div>
 <div class="param">t5xxl (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Filename of the loaded T5-XXL companion, or null. </div>
 <div class="param">clipVision (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> Filename of the loaded CLIP vision companion, or null. </div>
+<div class="param">supportsVideo (optional)</div><div class="param-desc"><span class="param-type"><a href="#"></a></span> True when the loaded model supports &lt;code&gt;txt2video&lt;/code&gt; (e.g. Wan 2.1/2.2).
+False for standard image-only models.
+Null when no model is loaded.
+Saves clients a separate &lt;code&gt;GET /v1/stablediffusion/supportsVideo&lt;/code&gt; call. </div>
     </div>  <!-- field-items -->
   </div>
   <div class="model">
