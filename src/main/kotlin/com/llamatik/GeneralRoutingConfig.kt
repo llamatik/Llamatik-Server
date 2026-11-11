@@ -5,6 +5,7 @@ import com.llamatik.routes.embeddingRoutes
 import com.llamatik.routes.generationRoutes
 import com.llamatik.routes.multimodalRoutes
 import com.llamatik.routes.stableDiffusionRoutes
+import com.llamatik.routes.statusRoutes
 import com.llamatik.routes.whisperRoutes
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -71,6 +72,7 @@ fun Application.configureGeneralRouting() {
 }
 
 private fun Route.inferenceRoutes() {
+    statusRoutes()
     embeddingRoutes()
     generationRoutes()
     whisperRoutes()

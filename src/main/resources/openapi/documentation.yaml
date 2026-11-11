@@ -17,12 +17,70 @@ servers:
 
 paths:
 
+  # ── Server status ──────────────────────────────────────────────────────────
+
+  /models:
+    get:
+      tags: [Status]
+      summary: List currently loaded models
+      description: |
+        Returns the loaded state of every inference bridge.
+        Only model filenames are returned — full server paths are never exposed.
+
+        Each bridge reports `loaded: true/false` and, when loaded, the filename
+        of the active model. The Stable Diffusion bridge also reports companion
+        files (VAE, T5-XXL, CLIP vision). The multimodal bridge reports the
+        projector filename alongside the model.
+
+        This endpoint follows the same `REQUIRE_INFERENCE_AUTH` setting as all
+        other inference endpoints.
+      responses:
+        '200':
+          description: Snapshot of all bridge states
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelsStatusResponse'
+              example:
+                generation:
+                  loaded: true
+                  model: "llama-3.2-3b-instruct-q8_0.gguf"
+                  capabilities:
+                    finetuneType: "instruct"
+                    hasChatTemplate: true
+                embedding:
+                  loaded: false
+                  model: null
+                whisper:
+                  loaded: true
+                  model: "ggml-base-q8_0.bin"
+                stableDiffusion:
+                  loaded: true
+                  model: "dreamshaper-8.gguf"
+                  vae: null
+                  t5xxl: null
+                  clipVision: null
+                  supportsVideo: false
+                multimodal:
+                  loaded: false
+                  model: null
+                  mmproj: null
+                mtp:
+                  loaded: false
+                  model: null
+
   # ── Embeddings ─────────────────────────────────────────────────────────────
 
   /embeddings/init:
     post:
       tags: [Embeddings]
       summary: Initialize an embedding model
+      description: |
+        Loads a GGUF embedding model into memory. Must be called before `/embeddings/embed`.
+        The model remains loaded until the server is restarted.
+
+        **Startup alternative:** set the `EMBEDDING_MODEL_PATH` environment variable to load
+        the model automatically at server start, without calling this endpoint.
       requestBody:
         required: true
         content:
@@ -43,6 +101,7 @@ paths:
     post:
       tags: [Embeddings]
       summary: Compute an embedding vector for a given input string
+      description: Requires a model loaded via `/embeddings/init` (or `EMBEDDING_MODEL_PATH` at startup).
       requestBody:
         required: true
         content:
@@ -65,6 +124,13 @@ paths:
     post:
       tags: [Generation]
       summary: Initialize a generation model
+      description: |
+        Loads a GGUF generation model into memory. Must be called before any generation,
+        streaming, session, or model-metadata endpoint. Calling it again while a model is
+        already loaded will replace the current model.
+
+        **Startup alternative:** set the `GENERATION_MODEL_PATH` environment variable to load
+        the model automatically at server start, without calling this endpoint.
       requestBody:
         required: true
         content:
@@ -85,6 +151,7 @@ paths:
     post:
       tags: [Generation]
       summary: Generate a one-shot completion for a prompt
+      description: Requires a model loaded via `/generation/init` (or `GENERATION_MODEL_PATH` at startup).
       requestBody:
         required: true
         content:
@@ -432,6 +499,12 @@ paths:
     post:
       tags: [Whisper]
       summary: Load a Whisper speech-to-text model
+      description: |
+        Loads a Whisper model into memory. Must be called before `/whisper/transcribe` or
+        `/whisper/transcribeSegments`. Use `/whisper/release` to free resources when done.
+
+        **Startup alternative:** set the `WHISPER_MODEL_PATH` environment variable to load
+        the model automatically at server start, without calling this endpoint.
       requestBody:
         required: true
         content:
@@ -452,7 +525,9 @@ paths:
     post:
       tags: [Whisper]
       summary: Transcribe a WAV file to flat text
-      description: Provide a 16 kHz mono 16-bit PCM WAV for best results.
+      description: |
+        Requires a model loaded via `/whisper/init` (or `WHISPER_MODEL_PATH` at startup).
+        Provide a 16 kHz mono 16-bit PCM WAV for best results.
       requestBody:
         required: true
         content:
@@ -473,6 +548,7 @@ paths:
     post:
       tags: [Whisper]
       summary: Transcribe a WAV file with per-segment timestamps and optional diarization
+      description: Requires a model loaded via `/whisper/init` (or `WHISPER_MODEL_PATH` at startup).
       requestBody:
         required: true
         content:
@@ -508,9 +584,16 @@ paths:
       tags: [Stable Diffusion]
       summary: Load a Stable Diffusion model
       description: |
+        Loads a Stable Diffusion model into memory. Must be called before any image or video
+        generation endpoint. Use `/stablediffusion/release` to free resources when done.
+
         For image-only models (SDXL, Flux, …) only `modelPath` and `threads` are required.
         Video models (Wan 2.1/2.2) additionally require `vaePath` and typically `t5xxlPath`.
         Pass `clipVisionPath` only for image-to-video variants.
+
+        **Startup alternative:** set `SD_MODEL_PATH` (plus `SD_VAE_PATH`, `SD_T5XXL_PATH`,
+        `SD_CLIP_VISION_PATH`, and `SD_THREADS` as needed) to load the model automatically
+        at server start, without calling this endpoint.
       requestBody:
         required: true
         content:
@@ -531,7 +614,9 @@ paths:
     post:
       tags: [Stable Diffusion]
       summary: Generate an image from a text prompt
-      description: Response contains Base64-encoded raw RGBA bytes (`width × height × 4`).
+      description: |
+        Requires a model loaded via `/stablediffusion/init` (or `SD_MODEL_PATH` at startup).
+        Response contains Base64-encoded raw RGBA bytes (`width × height × 4`).
       requestBody:
         required: true
         content:
@@ -555,6 +640,7 @@ paths:
       tags: [Stable Diffusion]
       summary: Generate an image conditioned on an existing image and a prompt
       description: |
+        Requires a model loaded via `/stablediffusion/init` (or `SD_MODEL_PATH` at startup).
         `initImageBase64` must be Base64-encoded raw RGBA bytes with dimensions `initImageW × initImageH × 4`.
       requestBody:
         required: true
@@ -644,6 +730,14 @@ paths:
     post:
       tags: [Multimodal]
       summary: Load a VLM model and its multimodal projector
+      description: |
+        Loads a vision-language model and its companion multimodal projector (`mmprojPath`)
+        into memory. Both paths are required. Must be called before `/multimodal/analyzeStream`.
+        Use `/multimodal/release` to free resources when done.
+
+        **Startup alternative:** set both `MULTIMODAL_MODEL_PATH` and `MULTIMODAL_MMPROJ_PATH`
+        environment variables to load the model automatically at server start, without calling
+        this endpoint.
       requestBody:
         required: true
         content:
@@ -665,6 +759,7 @@ paths:
       tags: [Multimodal]
       summary: Analyze an image and stream the description as Server-Sent Events (SSE)
       description: |
+        Requires a model loaded via `/multimodal/init` (or `MULTIMODAL_MODEL_PATH` + `MULTIMODAL_MMPROJ_PATH` at startup).
         `imageBase64` must be Base64-encoded JPEG, PNG, or BMP bytes.
         Uses the same SSE event format as generation streaming (`delta` / `done` / `error`).
       requestBody:
@@ -1150,3 +1245,112 @@ components:
           description: Base64-encoded JPEG, PNG, or BMP bytes.
         prompt:
           type: string
+
+    # ── Models status ─────────────────────────────────────────────────────────
+
+    BridgeStatusDto:
+      type: object
+      required: [loaded]
+      properties:
+        loaded:
+          type: boolean
+        model:
+          type: string
+          nullable: true
+          description: Filename of the loaded model, or null when no model is loaded.
+
+    GenerationCapabilitiesDto:
+      type: object
+      required: [hasChatTemplate]
+      properties:
+        finetuneType:
+          type: string
+          nullable: true
+          description: |
+            Value of the `general.finetune` GGUF metadata field.
+            `"instruct"` or `"chat"` → instruction-tuned model, use system/user prompt formatting.
+            `"base"` or null → base model, format prompts manually.
+          example: instruct
+        hasChatTemplate:
+          type: boolean
+          description: |
+            True when the model has an embedded Jinja chat template.
+            When true, `POST /v1/generation/model/applyChatTemplate` can render
+            messages into a prompt string automatically.
+
+    GenerationBridgeStatusDto:
+      type: object
+      required: [loaded]
+      properties:
+        loaded:
+          type: boolean
+        model:
+          type: string
+          nullable: true
+          description: Filename of the loaded model, or null when no model is loaded.
+        capabilities:
+          nullable: true
+          description: Non-null when a model is loaded.
+          allOf:
+            - $ref: '#/components/schemas/GenerationCapabilitiesDto'
+
+    SdBridgeStatusDto:
+      type: object
+      required: [loaded]
+      properties:
+        loaded:
+          type: boolean
+        model:
+          type: string
+          nullable: true
+        vae:
+          type: string
+          nullable: true
+          description: Filename of the loaded VAE companion, or null.
+        t5xxl:
+          type: string
+          nullable: true
+          description: Filename of the loaded T5-XXL companion, or null.
+        clipVision:
+          type: string
+          nullable: true
+          description: Filename of the loaded CLIP vision companion, or null.
+        supportsVideo:
+          type: boolean
+          nullable: true
+          description: |
+            True when the loaded model supports `txt2video` (e.g. Wan 2.1/2.2).
+            False for standard image-only models.
+            Null when no model is loaded.
+            Saves clients a separate `GET /v1/stablediffusion/supportsVideo` call.
+
+    MultimodalBridgeStatusDto:
+      type: object
+      required: [loaded]
+      properties:
+        loaded:
+          type: boolean
+        model:
+          type: string
+          nullable: true
+        mmproj:
+          type: string
+          nullable: true
+          description: Filename of the loaded multimodal projector, or null.
+
+    ModelsStatusResponse:
+      type: object
+      required: [generation, embedding, whisper, stableDiffusion, multimodal, mtp]
+      properties:
+        generation:
+          $ref: '#/components/schemas/GenerationBridgeStatusDto'
+        embedding:
+          $ref: '#/components/schemas/BridgeStatusDto'
+        whisper:
+          $ref: '#/components/schemas/BridgeStatusDto'
+        stableDiffusion:
+          $ref: '#/components/schemas/SdBridgeStatusDto'
+        multimodal:
+          $ref: '#/components/schemas/MultimodalBridgeStatusDto'
+        mtp:
+          $ref: '#/components/schemas/BridgeStatusDto'

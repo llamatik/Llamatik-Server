@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# local.properties.example
+#
+# Copy this file to  local.properties  and fill in your local paths.
+# local.properties is gitignored — never commit it.
+#
+# These values are injected as environment variables when you run the server
+# with  ./gradlew run  (or the IDE run configuration).  They are ignored when
+# the corresponding environment variable is already set in the shell, so
+# production deployments that set env vars directly are never affected.
+#
+# You can also override any individual value on the command line:
+#   ./gradlew run -Pgeneration.model.path=/tmp/other-model.gguf
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Security & Auth ──────────────────────────────────────────────────────────
+
+# jwt.secret=your-local-dev-secret
+# require.inference.auth=false
+
+# ── Path containment ─────────────────────────────────────────────────────────
+# Absolute path to the directory that holds all model files.
+# All caller-supplied paths are validated to resolve inside this directory.
+# Strongly recommended for any non-throwaway deployment.
+
+models.dir=/srv/models
+
+# Defaults to  $models.dir/sessions  when not set.
+# sessions.dir=/srv/models/sessions
+
+# ── LLM — text generation ────────────────────────────────────────────────────
+# Load a GGUF generation model at startup.
+
+# generation.model.path=/srv/models/llama-3.2-3b-instruct-q8_0.gguf
+
+# ── LLM — embeddings ─────────────────────────────────────────────────────────
+# Load a GGUF embedding model at startup.
+
+# embedding.model.path=/srv/models/nomic-embed-text-v1.5-q8_0.gguf
+
+# ── Speech-to-Text (Whisper) ──────────────────────────────────────────────────
+# Load a Whisper model at startup.
+
+# whisper.model.path=/srv/models/ggml-base-q8_0.bin
+
+# ── Image generation (Stable Diffusion) ──────────────────────────────────────
+# Standard image model — only sd.model.path is required.
+
+# sd.model.path=/srv/models/dreamshaper-8.safetensors
+# sd.threads=-1
+
+# Flux / SDXL — same as above, no extra companions needed.
+# sd.model.path=/srv/models/flux1-schnell-q8_0.gguf
+
+# ── Video generation (Wan 2.1 / 2.2) ─────────────────────────────────────────
+# Video models need the VAE and T5-XXL companions; image-to-video also needs
+# the CLIP vision encoder.
+
+# sd.model.path=/srv/models/wan2.1-t2v-1.3b-q8_0.gguf
+# sd.vae.path=/srv/models/wan_2.1_vae.safetensors
+# sd.t5xxl.path=/srv/models/umt5-xxl-encoder-Q8_0.gguf
+# sd.clip.vision.path=         # image-to-video only
+# sd.threads=-1
+
+# ── Multimodal / VLM ─────────────────────────────────────────────────────────
+# Both the model and its multimodal projector must be set together.
+
+# multimodal.model.path=/srv/models/SmolVLM-256M-Instruct-Q8_0.gguf
+# multimodal.mmproj.path=/srv/models/mmproj-SmolVLM-256M-f16.gguf

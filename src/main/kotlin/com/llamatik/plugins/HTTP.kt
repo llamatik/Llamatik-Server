@@ -10,6 +10,7 @@ import io.ktor.server.http.content.CachingOptions
 import io.ktor.server.plugins.cachingheaders.CachingHeaders
 import io.ktor.server.plugins.compression.Compression
 import io.ktor.server.plugins.compression.deflate
+import io.ktor.server.plugins.compression.excludeContentType
 import io.ktor.server.plugins.compression.gzip
 import io.ktor.server.plugins.compression.minimumSize
 import io.ktor.server.plugins.conditionalheaders.ConditionalHeaders
@@ -34,6 +35,8 @@ fun Application.configureHTTP() {
         }
     }
     install(Compression) {
+        // Compressing SSE makes the encoder buffer deltas, so clients only see the full text at the end.
+        excludeContentType(ContentType.Text.EventStream)
         gzip {
             priority = 1.0
         }

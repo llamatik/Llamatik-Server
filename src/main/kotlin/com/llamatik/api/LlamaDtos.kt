@@ -229,3 +229,77 @@ data class AnalyzeImageRequest(
     val imageBase64: String,
     val prompt: String
 )
+
+// --- Models status (GET /v1/models) ---
+
+/** Status of a single-file bridge with no model-level capabilities (embedding, whisper, MTP). */
+@Serializable
+data class BridgeStatusDto(
+    val loaded: Boolean,
+    /** Filename of the loaded model, or null when no model is loaded. */
+    val model: String? = null,
+)
+
+/**
+ * Capabilities introspected from a loaded generation model.
+ * Null in the parent DTO when no model is loaded.
+ */
+@Serializable
+data class GenerationCapabilitiesDto(
+    /**
+     * Value of the `general.finetune` GGUF metadata field.
+     * `"instruct"` / `"chat"` → instruction-tuned, use system/user prompt formatting.
+     * `"base"` / null → base model, prompt manually.
+     */
+    val finetuneType: String?,
+    /**
+     * True when the model has an embedded Jinja chat template.
+     * When true, `POST /v1/generation/model/applyChatTemplate` can render messages
+     * into a prompt string automatically.
+     */
+    val hasChatTemplate: Boolean,
+)
+
+/** Status of the generation bridge including model capabilities. */
+@Serializable
+data class GenerationBridgeStatusDto(
+    val loaded: Boolean,
+    val model: String? = null,
+    /** Non-null when a model is loaded. */
+    val capabilities: GenerationCapabilitiesDto? = null,
+)
+
+/** Status of the Stable Diffusion bridge, which may have companion files. */
+@Serializable
+data class SdBridgeStatusDto(
+    val loaded: Boolean,
+    val model: String? = null,
+    val vae: String? = null,
+    val t5xxl: String? = null,
+    val clipVision: String? = null,
+    /**
+     * True when the loaded model supports `txt2video` (e.g. Wan 2.1/2.2).
+     * Null when no model is loaded.
+     * Saves clients a separate `GET /v1/stablediffusion/supportsVideo` call.
+     */
+    val supportsVideo: Boolean? = null,
+)
+
+/** Status of the multimodal / VLM bridge. */
+@Serializable
+data class MultimodalBridgeStatusDto(
+    val loaded: Boolean,
+    val model: String? = null,
+    val mmproj: String? = null,
+)
+
+/** Full snapshot of every bridge's loaded state and capabilities. */
+@Serializable
+data class ModelsStatusResponse(
+    val generation: GenerationBridgeStatusDto,
+    val embedding: BridgeStatusDto,
+    val whisper: BridgeStatusDto,
+    val stableDiffusion: SdBridgeStatusDto,
+    val multimodal: MultimodalBridgeStatusDto,
+    val mtp: BridgeStatusDto,
+)

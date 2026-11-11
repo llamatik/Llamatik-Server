@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
@@ -17,6 +19,78 @@ application {
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
+}
+
+// ── Local development model configuration ─────────────────────────────────────
+//
+// Model paths and server options can be set in  local.properties  (gitignored).
+// See  local.properties.example  for the full list of supported keys and
+// per-model documentation.
+//
+// Individual values can also be overridden on the command line:
+//   ./gradlew run -Pgeneration.model.path=/path/to/model.gguf
+//
+// Priority (highest → lowest):
+//   1. Shell environment variable already set before Gradle starts
+//   2. Gradle project property  (-Pkey=value  or  gradle.properties)
+//   3. local.properties value
+//
+// These settings only affect  ./gradlew run.  Production deployments that set
+// environment variables directly are never affected.
+// ──────────────────────────────────────────────────────────────────────────────
+
+/** Mapping from local.properties / Gradle project-property key → server env var name. */
+val modelEnvVars = mapOf(
+    // Server
+    "jwt.secret"                to "JWT_SECRET",
+    "require.inference.auth"    to "REQUIRE_INFERENCE_AUTH",
+    "models.dir"                to "MODELS_DIR",
+    "sessions.dir"              to "SESSIONS_DIR",
+
+    // LLM — text generation
+    "generation.model.path"     to "GENERATION_MODEL_PATH",
+
+    // LLM — embeddings
+    "embedding.model.path"      to "EMBEDDING_MODEL_PATH",
+
+    // Speech-to-text
+    "whisper.model.path"        to "WHISPER_MODEL_PATH",
+
+    // Image / video generation
+    "sd.model.path"             to "SD_MODEL_PATH",
+    "sd.vae.path"               to "SD_VAE_PATH",
+    "sd.t5xxl.path"             to "SD_T5XXL_PATH",
+    "sd.clip.vision.path"       to "SD_CLIP_VISION_PATH",
+    "sd.threads"                to "SD_THREADS",
+
+    // Multimodal / VLM
+    "multimodal.model.path"     to "MULTIMODAL_MODEL_PATH",
+    "multimodal.mmproj.path"    to "MULTIMODAL_MMPROJ_PATH",
+)
+
+/** Reads local.properties once at configuration time. */
+val localProperties = Properties()
+val localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.inputStream().use { stream -> localProperties.load(stream) }
+}
+
+fun resolveModelProp(key: String): String? {
+    // 1. Gradle project property (-Pkey=value or gradle.properties)
+    val fromGradle = findProperty(key)?.toString()?.takeIf { it.isNotBlank() }
+    if (fromGradle != null) return fromGradle
+    // 2. local.properties
+    return localProperties.getProperty(key)?.takeIf { it.isNotBlank() }
+}
+
+tasks.named<JavaExec>("run") {
+    for ((propKey, envVar) in modelEnvVars) {
+        // Only inject when the shell has not already set the variable,
+        // so production env vars always take precedence.
+        if (System.getenv(envVar) == null) {
+            resolveModelProp(propKey)?.let { environment(envVar, it) }
+        }
+    }
 }
 
 dependencies {
