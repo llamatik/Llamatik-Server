@@ -52,6 +52,9 @@ fun Application.configureHTTP() {
         allowMethod(HttpMethod.Delete)
         allowMethod(HttpMethod.Patch)
         allowHeader(HttpHeaders.Authorization)
+        // Browser clients (Wasm/JS) send JSON bodies; without this the preflight is rejected with 403.
+        allowHeader(HttpHeaders.ContentType)
+        allowNonSimpleContentTypes = true
         anyHost() // @TODO: Don't do this in production if possible. Try to limit it.
     }
 }
