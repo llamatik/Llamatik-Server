@@ -105,6 +105,7 @@ exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exp
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
 
 kotlinx-html-jvm = "org.jetbrains.kotlinx:kotlinx-html-jvm:0.12.0"
+jmdns = "org.jmdns:jmdns:3.5.9"
 logback-classic = "ch.qos.logback:logback-classic:1.5.20"
 postgresql = "org.postgresql:postgresql:42.7.8"
 hikariCP = "com.zaxxer:HikariCP:7.0.2"

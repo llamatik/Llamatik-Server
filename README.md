@@ -192,6 +192,8 @@ sudo systemctl enable docker.llamatik
 | `DB_PASSWORD` | | Database password |
 | `DB_MAX_POOL_SIZE` | | HikariCP pool size (default: `3`) |
 | `ENABLE_SHUTDOWN_URL` | | Set to `"true"` to enable `POST /ktor/application/shutdown` |
+| `MDNS_ENABLED` | | Set to `"false"` to stop advertising the server on the local network. By default it is advertised as `_llamatik._tcp` (mDNS) so the Llamatik app can discover it. |
+| `MDNS_SERVICE_NAME` | | Name shown in discovery (default: the machine's hostname). |
 | `REQUIRE_INFERENCE_AUTH` | | Set to `"true"` to require a valid JWT Bearer token on all inference endpoints. **Always set this for internet-facing deployments.** LAN-only deployments may leave it unset. |
 | `MODELS_DIR` | | Absolute path to the directory that holds model files, WAV files, and companion files (e.g. `/srv/models`). When set, all caller-supplied file paths are validated to resolve inside this directory, preventing path traversal. Strongly recommended for all deployments. |
 | `SESSIONS_DIR` | | Absolute path for KV-session save/load files. Defaults to `$MODELS_DIR/sessions` when `MODELS_DIR` is set. When neither is configured, session paths are unconstrained. |

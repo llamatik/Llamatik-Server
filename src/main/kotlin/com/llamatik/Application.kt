@@ -9,7 +9,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.tomcat.jakarta.Tomcat
 
 fun main() {
-    embeddedServer(Tomcat, port = 8080, host = "0.0.0.0") {
+    embeddedServer(Tomcat, port = SERVER_PORT, host = "0.0.0.0") {
         configureSessions()
         configureGeneralRouting()
         configureAuthentication()
@@ -19,7 +19,9 @@ fun main() {
         configureSerialization()
         configureAdministration()
         configureStartupLoading()
+        configureDiscovery(port = SERVER_PORT)
     }.start(wait = true)
 }
 
+const val SERVER_PORT = 8080
 const val API_VERSION = "/v1"
