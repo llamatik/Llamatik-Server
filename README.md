@@ -650,6 +650,22 @@ Pass the JWT as a `Bearer` token in the `Authorization` header for authenticated
 
 ---
 
+## 🧱 Architecture: where the API code lives
+
+The inference API itself (`/v1/generation`, `/v1/embeddings`, whisper, stable diffusion, multimodal,
+per-device pairing, SSE streaming) is **not in this repository**. It is the `com.llamatik:server`
+library, built from the `:server-lib` module of the [Llamatik repo](https://github.com/ferranpons/llamatik)
+and released together with `com.llamatik:core`. That is the same code the Llamatik app embeds to
+share a device's models with other devices.
+
+This repository is the standalone host around it: Tomcat, environment-variable configuration,
+JWT/profiles, PostgreSQL, mDNS advertising, Docker and the release pipeline. Routes are mapped with
+`installLlamatikServer(LlamatikServerConfig(...))` in `GeneralRoutingConfig.kt`.
+
+To change an endpoint, change it in the Llamatik repo; here, bump `llamatikVersion` in `build.gradle.kts`.
+Until a release containing the library is on Maven Central, publish it locally from the Llamatik repo:
+`RELEASE_VERSION=<version> ./gradlew :server-lib:publishToMavenLocal`.
+
 ## 🧪 Testing
 
 The test suite covers all API endpoints using Ktor's `testApplication` with service fakes — no native runtime or model files required.

@@ -5,6 +5,19 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     id("io.ktor.plugin") version "3.4.1"
     alias(libs.plugins.shadow)
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+            username.set((findProperty("mavenCentralUsername") as String?) ?: System.getenv("MAVEN_CENTRAL_USERNAME"))
+            password.set((findProperty("mavenCentralPassword") as String?) ?: System.getenv("MAVEN_CENTRAL_PASSWORD"))
+            packageGroup.set("com.llamatik")
+        }
+    }
 }
 
 group = "com.llamatik"
@@ -13,6 +26,9 @@ version = (System.getenv("RELEASE_VERSION") ?: "0.0.1-SNAPSHOT")
 kotlin {
     jvmToolchain(21)
 }
+
+// Version of the Llamatik libraries (com.llamatik:core and com.llamatik:server).
+val llamatikVersion = "2.2.0"
 
 application {
     mainClass.set("com.llamatik.ApplicationKt")
@@ -94,7 +110,9 @@ tasks.named<JavaExec>("run") {
 }
 
 dependencies {
-    implementation("com.llamatik:core:2.2.0")
+    // Same version for both: the inference API (server) is built against exactly this core.
+    implementation("com.llamatik:server:$llamatikVersion")
+    implementation("com.llamatik:core:$llamatikVersion")
     implementation(libs.ktor.server.core)
     implementation(libs.jmdns)
     implementation(libs.ktor.server.auth)
