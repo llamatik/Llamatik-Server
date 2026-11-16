@@ -94,7 +94,8 @@ tasks.named<JavaExec>("run") {
 }
 
 dependencies {
-    implementation("com.llamatik:core:2.2.0")
+    // Inference API (routes, services, SSE) lives in the Llamatik server library; it brings com.llamatik:core.
+    implementation("com.llamatik:server:2.3.0")
     implementation(libs.ktor.server.core)
     implementation(libs.jmdns)
     implementation(libs.ktor.server.auth)

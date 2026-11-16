@@ -15,7 +15,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Kotlin-JVM-blueviolet" alt="kotlin badge"/>
   <img src="https://img.shields.io/badge/Ktor-3.3-ff4088" alt="ktor badge"/>
-  <img src="https://img.shields.io/badge/Llamatik-2.2.0-orange" alt="llamatik badge"/>
+  <img src="https://img.shields.io/badge/Llamatik-2.3.0-orange" alt="llamatik badge"/>
   <img src="https://img.shields.io/badge/LLM-llama.cpp-orange" alt="llama badge"/>
   <img src="https://img.shields.io/badge/STT-whisper.cpp-blue" alt="whisper badge"/>
   <img src="https://img.shields.io/badge/Image-stablediffusion.cpp-purple" alt="sd badge"/>
@@ -31,11 +31,18 @@
 
 It covers the full `LlamaBridge`, `WhisperBridge`, `StableDiffusionBridge`, and `MultimodalBridge` surface: LLM generation, embeddings, speech-to-text, image generation, **video generation**, and multimodal vision — all over HTTP.
 
+> **Built on the Llamatik server library.** The inference API (`/v1/...` routes, services, SSE streaming, path validation) lives in [`com.llamatik:server`](https://central.sonatype.com/artifact/com.llamatik/server) (published from the Llamatik library) — the same code the Llamatik app uses to host a server on a phone or desktop. This project is a thin standalone host around it: Tomcat engine, JWT auth, user profiles (PostgreSQL), mDNS discovery and environment-variable configuration.
+
+```kotlin
+// build.gradle.kts
+implementation("com.llamatik:server:2.3.0")
+```
+
 ---
 
 ## 🚀 Features
 
-- ✅ Full parity with **Llamatik core 2.2.0** API
+- ✅ Full parity with **Llamatik core 2.3.0** API
 - ✅ LLM inference via **llama.cpp** — streaming & non-streaming
 - ✅ **Schema-constrained JSON generation**
 - ✅ **Embeddings** for vector search & RAG
@@ -652,14 +659,13 @@ Pass the JWT as a `Bearer` token in the `Authorization` header for authenticated
 
 ## 🧪 Testing
 
-The test suite covers all API endpoints using Ktor's `testApplication` with service fakes — no native runtime or model files required.
+The API routes (embeddings, generation, whisper, stable diffusion, multimodal, SSE, path validation) are implemented and tested in the Llamatik library's `server-lib` module. This repository only tests the standalone host layer (e.g. HTTP compression).
 
 ```bash
 ./gradlew test
 ```
 
-| Suite | Tests |
-|---|---|
+---|---|
 | `EmbeddingRoutesTest` | 4 |
 | `GenerationRoutesTest` | 49 |
 | `WhisperRoutesTest` | 10 |

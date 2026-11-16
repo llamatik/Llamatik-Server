@@ -17,6 +17,7 @@ fun main() {
         configureMonitoring()
         configureTemplating()
         configureSerialization()
+        configureInferenceApi()
         configureAdministration()
         configureStartupLoading()
         configureDiscovery(port = SERVER_PORT)
@@ -24,4 +25,3 @@ fun main() {
 }
 
 const val SERVER_PORT = 8080
-const val API_VERSION = "/v1"
